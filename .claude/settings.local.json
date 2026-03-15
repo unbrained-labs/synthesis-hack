@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:synthesis.md)",
+      "Read(//Users/danieldo/Downloads/**)",
+      "Bash(python3 -c \":*)",
+      "WebFetch(domain:synthesis.devfolio.co)"
+    ]
+  }
+}

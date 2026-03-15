@@ -1,0 +1,11 @@
+{
+  "name": "agentclear",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev:worker": "cd packages/worker && npm run dev",
+    "dev:buyer": "cd packages/buyer-agent && npm run dev",
+    "dev:seller": "cd packages/seller-agent && npm run dev",
+    "deploy": "cd packages/worker && npm run deploy"
+  }
+}
