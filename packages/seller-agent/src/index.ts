@@ -98,10 +98,11 @@ async function verifyBlackboxPayment(
       }
     }
 
-    if (totalReceived < expectedMicro) {
+    const minAccepted = (expectedMicro * 99n) / 100n;
+    if (totalReceived < minAccepted) {
       return {
         valid: false,
-        reason: `Received ${totalReceived} micro-USDC, expected ${expectedMicro}`,
+        reason: `Received ${totalReceived} micro-USDC, expected >= ${minAccepted} (1% fee tolerance)`,
       };
     }
 

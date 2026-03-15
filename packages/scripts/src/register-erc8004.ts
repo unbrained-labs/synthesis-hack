@@ -30,7 +30,7 @@ dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const AGENT_CARD_URL =
-  "https://agentclear.internull.xyz/.well-known/agent-card.json";
+  "https://agentclear-worker.ddohne.workers.dev/.well-known/agent-card.json";
 
 const ETHSKILLS_ADDRESSES_URL =
   "https://ethskills.com/addresses/SKILL.md";

@@ -160,23 +160,55 @@ async function probeSeller(
     return { status: response.status, instructions: null };
   }
 
-  let instructions: PaymentInstructions | null = null;
+  let raw: Record<string, unknown> | null = null;
 
   try {
-    instructions = (await response.json()) as PaymentInstructions;
+    raw = (await response.json()) as Record<string, unknown>;
   } catch {
-    // Some sellers put the instructions in a header
     const header = response.headers.get("X-Payment-Required");
     if (header) {
       try {
-        instructions = JSON.parse(
-          Buffer.from(header, "base64").toString("utf8")
-        ) as PaymentInstructions;
+        raw = JSON.parse(Buffer.from(header, "base64").toString("utf8")) as Record<string, unknown>;
       } catch {
         // ignore
       }
     }
   }
+
+  if (!raw) return { status: 402, instructions: null };
+
+  // x402 v2 format: payment details live in accepts[0]
+  const accepts = Array.isArray(raw.accepts)
+    ? (raw.accepts as Record<string, unknown>[])
+    : null;
+
+  const accept0 = accepts?.[0];
+
+  const rawAmount = accept0?.amount ?? raw.amount;
+  const rawDecimals = (accept0?.extra as Record<string, unknown> | undefined)?.decimals ?? 6;
+  const decimals = typeof rawDecimals === "number" ? rawDecimals : 6;
+
+  // Convert micro-units to human-readable if amount looks like integer micro-USDC
+  let amount: string;
+  if (typeof rawAmount === "string" && rawAmount.includes(".")) {
+    amount = rawAmount;
+  } else {
+    const micro = parseFloat(String(rawAmount ?? "0"));
+    amount = (micro / Math.pow(10, decimals)).toString();
+  }
+
+  const payTo = String(accept0?.payTo ?? raw.payTo ?? "");
+  const network = String(accept0?.network ?? raw.network ?? "base-sepolia");
+  const token = String(accept0?.asset ?? raw.token ?? "");
+
+  const instructions: PaymentInstructions = {
+    amount,
+    payTo,
+    network,
+    token,
+    scheme: String(accept0?.scheme ?? "exact"),
+    ...raw,
+  };
 
   return { status: 402, instructions };
 }
