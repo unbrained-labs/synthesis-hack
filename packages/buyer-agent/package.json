@@ -1,0 +1,27 @@
+{
+  "name": "@agentclear/buyer-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AgentClear demo buyer — discovers seller via ERC-8004, pays via Blackbox + x402",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "demo": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@coinbase/cdp-sdk": "^1.45.0",
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

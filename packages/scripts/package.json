@@ -1,0 +1,23 @@
+{
+  "name": "@agentclear/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Setup and utility scripts for AgentClear",
+  "scripts": {
+    "wallets": "tsx src/setup-wallets.ts",
+    "health": "tsx src/check-health.ts",
+    "register": "tsx src/register-erc8004.ts"
+  },
+  "dependencies": {
+    "@coinbase/cdp-sdk": "^1.45.0",
+    "dotenv": "^16.4.7",
+    "node-fetch": "^3.3.2",
+    "viem": "^2.21.54"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.3"
+  }
+}
