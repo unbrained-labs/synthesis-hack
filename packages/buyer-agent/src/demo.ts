@@ -147,11 +147,13 @@ async function probeSeller(
   sellerUrl: string
 ): Promise<{ status: number; instructions: PaymentInstructions | null }> {
   const response = await fetch(sellerUrl, {
-    method: "GET",
+    method: "POST",
     headers: {
       Accept: "application/json",
+      "Content-Type": "application/json",
       "User-Agent": "AgentClear-Buyer/0.1.0",
     },
+    body: JSON.stringify({}),
   });
 
   if (response.status !== 402) {
@@ -188,12 +190,14 @@ async function retryWithPayment(
   paymentHeader: string
 ): Promise<unknown> {
   const response = await fetch(sellerUrl, {
-    method: "GET",
+    method: "POST",
     headers: {
       Accept: "application/json",
+      "Content-Type": "application/json",
       "User-Agent": "AgentClear-Buyer/0.1.0",
       "X-PAYMENT": paymentHeader,
     },
+    body: JSON.stringify({}),
   });
 
   if (!response.ok) {
@@ -215,7 +219,7 @@ async function retryWithPayment(
 // ---------------------------------------------------------------------------
 
 export async function runDemo(): Promise<DemoResult> {
-  const sellerUrl = process.env.SELLER_URL ?? "http://localhost:4022";
+  const sellerUrl = process.env.SELLER_URL ?? "http://localhost:4022/analyze";
   const walletName = "agentclear-buyer";
   const walletPassword =
     process.env.WALLET_PASSWORD ?? "agentclear-demo-2026";
@@ -295,13 +299,19 @@ export async function runDemo(): Promise<DemoResult> {
     console.log(
       `Step 5-6: Amount ${instructions.amount} USDC >= ${PRIVACY_FLOOR} USDC → Blackbox privacy payment`
     );
-    txHashes = await payExact(
-      bb,
-      instructions.amount,
-      instructions.payTo,
-      walletName,
-      walletPassword
-    );
+    try {
+      txHashes = await payExact(
+        bb,
+        instructions.amount,
+        instructions.payTo,
+        walletName,
+        walletPassword
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`  [Blackbox] Failed (${msg}) — falling back to x402 direct`);
+      txHashes = await payX402Direct(wallet.address, instructions);
+    }
   } else {
     console.log(
       `Step 5-6: Amount ${instructions.amount} USDC < ${PRIVACY_FLOOR} USDC → x402 direct payment`

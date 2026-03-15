@@ -12,6 +12,8 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import fs from "fs";
+import path from "path";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -301,6 +303,12 @@ export async function payExact(
     const key = depositParsed.keys[0];
     console.log(`    Withdrawal key obtained. Merkle root: ${key.merkle_root_id}`);
 
+    // Persist key to disk BEFORE attempting withdrawal.
+    // If withdraw_onchain fails, the key can be recovered and retried.
+    const keyFile = path.join(process.cwd(), `.withdrawal-key-${i}-${Date.now()}.json`);
+    fs.writeFileSync(keyFile, JSON.stringify(key, null, 2));
+    console.log(`    Key persisted to ${path.basename(keyFile)} (delete after success)`);
+
     // Step 2: withdraw to recipient address
     const withdrawResult = await bb.client.callTool({
       name: "withdraw_onchain",
@@ -328,6 +336,9 @@ export async function payExact(
 
     console.log(`    Withdraw tx: ${withdrawParsed.tx_hash}`);
     txHashes.push(withdrawParsed.tx_hash);
+
+    // Clean up persisted key file on success
+    try { fs.unlinkSync(keyFile); } catch { /* ignore */ }
   }
 
   return txHashes;

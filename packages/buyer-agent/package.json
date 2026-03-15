@@ -12,9 +12,9 @@
     "demo": "tsx src/index.ts"
   },
   "dependencies": {
-    "@coinbase/cdp-sdk": "^1.45.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "viem": "^2.21.54"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

@@ -86,24 +86,40 @@ function buildPaymentRequiredBody(payToAddress: string, usdcAddress: string) {
 }
 
 /**
- * Verify a payment header against the x402 facilitator.
+ * Verify a payment header against the x402 facilitator, then settle it.
  * Returns true only when the facilitator confirms isValid === true.
+ *
+ * Settling marks the payment as consumed, preventing replay attacks
+ * within the maxTimeoutSeconds window.
  */
-async function verifyPayment(
+async function verifyAndSettlePayment(
   paymentHeader: string,
   facilitatorUrl: string
 ): Promise<boolean> {
   try {
-    const res = await fetch(`${facilitatorUrl}/verify`, {
+    const verifyRes = await fetch(`${facilitatorUrl}/verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ payment: paymentHeader }),
     });
 
-    if (!res.ok) return false;
+    if (!verifyRes.ok) return false;
 
-    const data = (await res.json()) as FacilitatorVerifyResponse;
-    return data.isValid === true;
+    const data = (await verifyRes.json()) as FacilitatorVerifyResponse;
+    if (data.isValid !== true) return false;
+
+    // Settle to mark payment as consumed (prevents 60s replay window)
+    await fetch(`${facilitatorUrl}/settle`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payment: paymentHeader }),
+    }).catch(() => {
+      // Settle failure is non-fatal but logged — a replay is theoretically
+      // possible until the facilitator expires the nonce automatically.
+      console.warn("[x402] /settle failed — possible replay window");
+    });
+
+    return true;
   } catch {
     return false;
   }
@@ -179,7 +195,7 @@ app.post("/task", async (c) => {
     });
   }
 
-  const verified = await verifyPayment(paymentHeader, facilitatorUrl);
+  const verified = await verifyAndSettlePayment(paymentHeader, facilitatorUrl);
 
   if (!verified) {
     return c.json(
