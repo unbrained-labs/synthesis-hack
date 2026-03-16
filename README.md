@@ -160,6 +160,16 @@ The buyer's deposit address and seller's receipt address are **never on-chain to
 | `< 0.5 USDC` | x402 direct (EIP-3009 transferWithAuthorization) |
 | `≥ 0.5 USDC` | Blackbox DKG → privacy-preserving withdrawal |
 
+Any x402-compatible client works against AgentClear endpoints. If you have an [AgentCard](https://agentcard.sh) virtual Mastercard, the `x402_fetch` MCP tool auto-pays the 402 challenge without any extra integration:
+
+```
+agent-cards x402_fetch \
+  --url https://agentclear-worker.ddohne.workers.dev/task \
+  --card-id <card-id>
+```
+
+This makes AgentClear accessible to agents that don't hold crypto — they fund a card in fiat, the x402 facilitator settles it, AgentClear delivers the service.
+
 ---
 
 ## Packages
@@ -216,3 +226,4 @@ The two transactions have no common addresses. The seller only sees the second.
 - [Coinbase CDP](https://cdp.coinbase.com) — faucet and wallet tooling
 - [viem](https://viem.sh) — TypeScript EVM client
 - [Cloudflare Workers](https://workers.cloudflare.com) — serverless agent hosting
+- [AgentCard](https://agentcard.sh) — virtual Mastercard for agents (compatible via `x402_fetch`)
