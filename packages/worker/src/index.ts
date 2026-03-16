@@ -161,6 +161,139 @@ app.get("/health", (c) => {
   return c.json({ status: "ok", name: "AgentClear", timestamp: Date.now() });
 });
 
+/** Machine-readable agent instructions */
+app.get("/agent.txt", (c) => {
+  const usdcAddress =
+    c.env.USDC_ADDRESS ?? "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+  const payToAddress =
+    c.env.PAY_TO_ADDRESS ?? "0x0000000000000000000000000000000000000001";
+
+  const body = `# AgentClear — Quick Reference for AI Agents
+
+Privacy-preserving agent-to-agent commerce.
+Discover agents via ERC-8004, pay privately via Blackbox DKG, settle USDC on Base Sepolia.
+
+## When to Use AgentClear
+
+- You need to pay another AI agent for a service without revealing your identity
+- You need to access a paid HTTP resource that returns 402 Payment Required
+- You need cross-chain USDC settlement with no on-chain link between payer and recipient
+- You want to receive payment from other agents for a service you provide
+
+## When NOT to Use AgentClear
+
+- You need to pay a human or traditional merchant (use AgentCard or a fiat rail)
+- You need instant sub-second finality (Blackbox DKG takes ~15-30s for on-chain confirmation)
+- You need amounts below 0.001 USDC (use x402 direct micropayment instead)
+
+## Live Endpoints
+
+Agent card (ERC-8004 identity):
+  GET https://agentclear-worker.ddohne.workers.dev/.well-known/agent-card.json
+
+Paid task endpoint (returns HTTP 402 if unpaid):
+  POST https://agentclear-worker.ddohne.workers.dev/task
+
+Health check:
+  GET https://agentclear-worker.ddohne.workers.dev/health
+
+## Payment Flow
+
+### Step 1 — Probe the endpoint
+POST https://agentclear-worker.ddohne.workers.dev/task
+→ 402 Payment Required
+→ Body contains x402 payment instructions (scheme, amount, asset, payTo, network)
+
+### Step 2 — Pay via Blackbox (private, >= 0.5 USDC)
+1. Connect Blackbox MCP: npx blackbox-mcp@latest
+2. Call deposit_and_claim with the amount and target chain
+3. Call withdraw_onchain to send funds to the payTo address
+4. Build X-PAYMENT header: base64(JSON({ scheme: "blackbox-x402", txHashes: [...] }))
+
+### Step 2 (alternative) — Pay via x402 direct or AgentCard
+Use any x402-compatible client (AgentCard x402_fetch, x402-sdk, etc.)
+Build X-PAYMENT header with the signed EIP-3009 payload.
+
+### Step 3 — Retry with payment
+POST https://agentclear-worker.ddohne.workers.dev/task
+Header: X-PAYMENT: <base64-encoded-payment-proof>
+→ 200 OK with task result
+
+## x402 Payment Instructions
+
+Network: eip155:84532 (Base Sepolia)
+Asset: ${usdcAddress} (USDC, 6 decimals)
+Amount: 1000000 (1 USDC)
+PayTo: ${payToAddress}
+Scheme: exact
+MaxTimeoutSeconds: 60
+
+## X-PAYMENT Header Format
+
+Blackbox payments:
+  base64(JSON({
+    "scheme": "blackbox-x402",
+    "network": "base-sepolia",
+    "token": "${usdcAddress}",
+    "payTo": "${payToAddress}",
+    "amount": "1",
+    "txHashes": ["0x..."],
+    "timestamp": "<ISO-8601>"
+  }))
+
+Standard x402:
+  Signed EIP-3009 payload per x402 spec (verified via https://x402.org/facilitator)
+
+## AgentCard Compatibility
+
+If you have an AgentCard virtual Mastercard, x402_fetch works directly:
+  x402_fetch({ url: "https://agentclear-worker.ddohne.workers.dev/task", card_id: "<id>" })
+
+## Blackbox MCP Config
+
+{
+  "mcpServers": {
+    "blackbox": {
+      "command": "npx",
+      "args": ["blackbox-mcp@latest"],
+      "env": {
+        "DKG_NODE_1": "https://theblackbox.network/node1",
+        "DKG_NODE_2": "https://theblackbox.network/node2",
+        "DKG_NODE_3": "https://theblackbox.network/node3",
+        "DKG_NODE_4": "https://theblackbox.network/node4",
+        "DKG_NODE_5": "https://theblackbox.network/node5"
+      }
+    }
+  }
+}
+
+## ERC-8004 Registration
+
+Registry: 0x8004A818BFB912233c491871b3d84c89A494BD9e (Base Sepolia)
+Token ID: 1937
+Agent Card URL: https://agentclear-worker.ddohne.workers.dev/.well-known/agent-card.json
+
+## Privacy Model
+
+- Deposit and withdrawal transactions share no on-chain addresses
+- DKG cluster (5 nodes, 3-of-5 threshold) — no single node knows the full key
+- One-time withdrawal keys — on-chain nullifier prevents reuse
+- Seller sees only the withdrawal tx, never the buyer's deposit address
+
+## Links
+
+GitHub: https://github.com/unbrained-labs/synthesis-hack
+Blackbox Network: https://theblackbox.network
+x402 Protocol: https://x402.org
+AgentCard: https://agentcard.sh
+`;
+
+  return c.text(body, 200, {
+    "Content-Type": "text/plain; charset=utf-8",
+    "Cache-Control": "public, max-age=300",
+  });
+});
+
 /**
  * x402-protected task endpoint.
  *
