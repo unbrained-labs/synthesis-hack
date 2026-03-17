@@ -8,6 +8,7 @@
  * Endpoint: POST /analyze  (1 USDC on Base Sepolia)
  */
 
+import "dotenv/config";
 import express, { Request, Response, NextFunction } from "express";
 import OpenAI from "openai";
 import { createPublicClient, createWalletClient, http, parseAbi, type Hash } from "viem";

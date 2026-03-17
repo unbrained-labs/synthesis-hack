@@ -39,7 +39,9 @@
       "Bash(npx wrangler:*)",
       "WebFetch(domain:status.network)",
       "WebFetch(domain:docs.status.network)",
-      "WebFetch(domain:hub.status.network)"
+      "WebFetch(domain:hub.status.network)",
+      "Bash(ls:*)",
+      "Bash(find:*)"
     ]
   }
 }
