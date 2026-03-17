@@ -23,6 +23,7 @@ import {
   importWallet,
   payExact,
   PRIVACY_FLOOR,
+  type PayResult,
 } from "./blackbox.js";
 
 // ---------------------------------------------------------------------------
@@ -54,8 +55,10 @@ interface DemoResult {
   paymentInstructions: PaymentInstructions;
   /** Whether Blackbox was used (true) or x402 direct (false) */
   usedBlackbox: boolean;
-  /** Transaction hashes (Blackbox withdrawals or x402 tx) */
+  /** Withdrawal tx hashes (what the seller sees) */
   txHashes: string[];
+  /** Deposit tx hashes (buyer → Blackbox treasury, different chain/address from txHashes) */
+  depositTxHashes: string[];
   /** Final service response body */
   serviceResponse: unknown;
   /** ISO timestamp */
@@ -64,46 +67,6 @@ interface DemoResult {
   sourceChain: string;
   /** Target chain for withdrawal (seller's chain) */
   targetChain: string;
-}
-
-// ---------------------------------------------------------------------------
-// x402 direct payment (small amounts below privacy floor)
-// ---------------------------------------------------------------------------
-
-/**
- * Perform a direct x402 payment using the Coinbase CDP facilitator.
- *
- * For amounts < 0.50 USDC the Blackbox overhead is not worth it.
- * We construct a minimal EIP-3009 transferWithAuthorization signed by the
- * CDP wallet and POST it to the x402 facilitator.
- *
- * In a full implementation this would use the `x402-sdk` package.
- * Here we call the facilitator REST API directly.
- */
-async function payX402Direct(
-  buyerAddress: string,
-  instructions: PaymentInstructions
-): Promise<string[]> {
-  console.log(
-    `  [x402 direct] Paying ${instructions.amount} USDC to ${instructions.payTo}`
-  );
-
-  // In a production integration, use the x402-sdk:
-  //   import { makePayment } from "x402-sdk";
-  //   const result = await makePayment({ ... });
-  //
-  // For the demo we simulate the payment and return a placeholder tx hash.
-  // The seller-agent verifies via the x402 facilitator, so a real deployment
-  // would need a proper signed payload here.
-
-  const simulatedTxHash =
-    "0x" +
-    Array.from({ length: 64 }, () =>
-      Math.floor(Math.random() * 16).toString(16)
-    ).join("");
-
-  console.log(`  [x402 direct] Simulated tx: ${simulatedTxHash}`);
-  return [simulatedTxHash];
 }
 
 // ---------------------------------------------------------------------------
@@ -333,35 +296,32 @@ export async function runDemo(): Promise<DemoResult> {
   const amountNum = parseFloat(instructions.amount);
   const useBlackbox = amountNum >= PRIVACY_FLOOR;
 
-  let txHashes: string[];
+  let payResult: PayResult;
 
   if (useBlackbox) {
     console.log(
       `Step 5-6: Amount ${instructions.amount} USDC >= ${PRIVACY_FLOOR} USDC → Blackbox privacy payment`
     );
-    try {
-      txHashes = await payExact(
-        bb,
-        instructions.amount,
-        instructions.payTo,
-        walletName,
-        walletPassword,
-        sourceChain,
-        targetChain
-      );
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`  [Blackbox] Failed (${msg}) — falling back to x402 direct`);
-      txHashes = await payX402Direct(wallet.address, instructions);
-    }
+    payResult = await payExact(
+      bb,
+      instructions.amount,
+      instructions.payTo,
+      walletName,
+      walletPassword,
+      sourceChain,
+      targetChain
+    );
   } else {
     console.log(
       `Step 5-6: Amount ${instructions.amount} USDC < ${PRIVACY_FLOOR} USDC → x402 direct payment`
     );
-    txHashes = await payX402Direct(wallet.address, instructions);
+    // x402 direct: use the signed EIP-3009 flow (not implemented in demo — requires funded wallet)
+    console.log(`  [x402 direct] ${instructions.amount} USDC to ${instructions.payTo}`);
+    payResult = { depositTxHashes: [], withdrawTxHashes: [] };
   }
 
-  console.log(`  Payment complete. Tx hashes: [${txHashes.join(", ")}]\n`);
+  const txHashes = payResult.withdrawTxHashes;
+  console.log(`  Payment complete. Withdraw tx: [${txHashes.join(", ")}]\n`);
 
   // ------------------------------------------------------------------
   // Step 7: Build X-PAYMENT header + retry
@@ -399,6 +359,7 @@ export async function runDemo(): Promise<DemoResult> {
     paymentInstructions: instructions,
     usedBlackbox: useBlackbox,
     txHashes,
+    depositTxHashes: payResult.depositTxHashes,
     serviceResponse,
     completedAt: new Date().toISOString(),
     sourceChain,
@@ -432,14 +393,16 @@ export function printSummary(result: DemoResult): void {
   console.log(`  Completed at      : ${result.completedAt}`);
   console.log("═══════════════════════════════════════════════════");
   if (result.usedBlackbox) {
+    const depositHash = result.depositTxHashes[0];
+    const withdrawHash = result.txHashes[0];
     console.log("\n── What a competitor sees on-chain ─────────────────");
     if (crossChain) {
-      console.log(`  Deposit:    ${result.txHashes[0]?.slice(0, 12)}...  chain: ${result.sourceChain}   buyer: UNKNOWN`);
-      console.log(`  Withdrawal: ${result.txHashes[0]?.slice(0, 12)}...  chain: ${result.targetChain}  source: UNKNOWN`);
-      console.log("  Different chains. No common address. No link. No graph edge.");
+      console.log(`  Deposit:    ${depositHash?.slice(0, 20)}...  chain: ${result.sourceChain}  buyer: UNKNOWN`);
+      console.log(`  Withdrawal: ${withdrawHash?.slice(0, 20)}...  chain: ${result.targetChain}  source: UNKNOWN`);
+      console.log("  Different chains. Different addresses. Zero graph edge.");
     } else {
-      console.log(`  Deposit:    ${result.txHashes[0]?.slice(0, 12)}...  buyer: UNKNOWN`);
-      console.log(`  Withdrawal: ${result.txHashes[0]?.slice(0, 12)}...  source: UNKNOWN`);
+      console.log(`  Deposit:    ${depositHash?.slice(0, 20)}...  buyer: UNKNOWN`);
+      console.log(`  Withdrawal: ${withdrawHash?.slice(0, 20)}...  source: UNKNOWN`);
       console.log("  No common address. No link. No graph edge.");
     }
     console.log("────────────────────────────────────────────────────\n");

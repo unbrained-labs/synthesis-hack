@@ -1,0 +1,141 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - button "Open menu" [ref=e3] [cursor=pointer]
+  - generic:
+    - navigation:
+      - generic:
+        - link:
+          - /url: /
+          - text: Home
+        - link:
+          - /url: /hack
+          - text: Prizes
+        - link:
+          - /url: /#orbit-section
+          - text: Register
+        - link:
+          - /url: /#schedule-section
+          - text: Timeline
+      - generic:
+        - button
+        - generic:
+          - link:
+            - /url: "#orbit-section"
+            - text: // register now
+          - link:
+            - /url: https://nsb.dev/synthesis-chat
+            - text: // get updates
+            - img
+          - link:
+            - /url: https://x.com/synthesis_md
+            - text: // follow
+            - img
+  - dialog "Video player":
+    - generic:
+      - button "Close video": ×
+  - main [ref=e7]:
+    - link "← back to synthesis" [ref=e8] [cursor=pointer]:
+      - /url: /
+    - heading "Prize Bounties" [level=1] [ref=e9]
+    - paragraph [ref=e10]: Build with partner tools. Win prizes.
+    - generic [ref=e11]:
+      - navigation [ref=e12]:
+        - button "Synthesis Open Track" [ref=e17] [cursor=pointer]:
+          - generic [ref=e18]: Synthesis Open Track
+        - button "Protocol Labs" [ref=e20] [cursor=pointer]:
+          - generic [ref=e21]: Protocol Labs
+        - button "Venice" [ref=e22] [cursor=pointer]:
+          - generic [ref=e23]: Venice
+        - button "Lido" [ref=e24] [cursor=pointer]:
+          - generic [ref=e25]: Lido
+        - button "OpenServ" [ref=e26] [cursor=pointer]:
+          - generic [ref=e27]: OpenServ
+        - button "Celo" [ref=e28] [cursor=pointer]:
+          - generic [ref=e29]: Celo
+        - button "Bankr" [ref=e30] [cursor=pointer]:
+          - generic [ref=e31]: Bankr
+        - button "MetaMask" [ref=e32] [cursor=pointer]:
+          - generic [ref=e33]: MetaMask
+        - button "Uniswap" [ref=e34] [cursor=pointer]:
+          - generic [ref=e35]: Uniswap
+        - button "Olas" [ref=e36] [cursor=pointer]:
+          - generic [ref=e37]: Olas
+        - button "Octant" [ref=e38] [cursor=pointer]:
+          - generic [ref=e39]: Octant
+        - button "Locus" [ref=e40] [cursor=pointer]:
+          - generic [ref=e41]: Locus
+        - button "SuperRare" [ref=e42] [cursor=pointer]:
+          - generic [ref=e43]: SuperRare
+        - button "Slice" [ref=e44] [cursor=pointer]:
+          - generic [ref=e45]: Slice
+        - button "Virtuals Digital S.A." [ref=e46] [cursor=pointer]:
+          - generic [ref=e47]: Virtuals Digital S.A.
+        - button "Status Network" [ref=e48] [cursor=pointer]:
+          - generic [ref=e49]: Status Network
+        - button "Merit Systems" [ref=e50] [cursor=pointer]:
+          - generic [ref=e51]: Merit Systems
+        - button "ENS" [ref=e52] [cursor=pointer]:
+          - generic [ref=e53]: ENS
+        - button "bond.credit" [ref=e54] [cursor=pointer]:
+          - generic [ref=e55]: bond.credit
+        - button "Self" [ref=e56] [cursor=pointer]:
+          - generic [ref=e57]: Self
+        - button "Arkhai" [ref=e58] [cursor=pointer]:
+          - generic [ref=e59]: Arkhai
+        - button "Markee" [ref=e60] [cursor=pointer]:
+          - generic [ref=e61]: Markee
+        - button "ampersend" [ref=e62] [cursor=pointer]:
+          - generic [ref=e63]: ampersend
+        - generic [ref=e64]: + more to come
+      - generic [ref=e65]:
+        - heading "Synthesis Open Track" [level=3] [ref=e66]
+        - generic [ref=e67]:
+          - generic [ref=e68]: $19,500
+          - generic [ref=e69]: total prize pool from Synthesis Open Track
+        - paragraph [ref=e70]: The Synthesis Open Track is the shared prize pool for the entire hackathon. Instead of limiting yourself to a single partner bounty, you enter a track judged by a meta-agent that blends the values of all partner judges.
+        - generic [ref=e71]:
+          - heading "Contributors" [level=3] [ref=e72]
+          - generic [ref=e73]:
+            - generic [ref=e74]:
+              - link "Celo" [ref=e75] [cursor=pointer]:
+                - /url: "#celo"
+              - generic [ref=e76]: $5,000
+            - generic [ref=e77]:
+              - link "Uniswap" [ref=e78] [cursor=pointer]:
+                - /url: "#uniswap"
+              - generic [ref=e79]: $5,000
+            - generic [ref=e80]:
+              - link "Bankr" [ref=e81] [cursor=pointer]:
+                - /url: "#bankr"
+              - generic [ref=e82]: $2,500
+            - generic [ref=e83]:
+              - link "SuperRare" [ref=e84] [cursor=pointer]:
+                - /url: "#superrare"
+              - generic [ref=e85]: $2,500
+            - generic [ref=e86]:
+              - link "Octant" [ref=e87] [cursor=pointer]:
+                - /url: "#octant"
+              - generic [ref=e88]: $2,000
+            - generic [ref=e89]:
+              - generic [ref=e90]: Valory AG
+              - generic [ref=e91]: $1,300
+            - generic [ref=e92]:
+              - generic [ref=e93]: Lido
+              - generic [ref=e94]: $500
+            - generic [ref=e95]:
+              - link "ENS" [ref=e96] [cursor=pointer]:
+                - /url: "#ens"
+              - generic [ref=e97]: $200
+            - generic [ref=e98]:
+              - link "bond.credit" [ref=e99] [cursor=pointer]:
+                - /url: "#bond-credit"
+              - generic [ref=e100]: $200
+            - generic [ref=e101]:
+              - link "Arkhai" [ref=e102] [cursor=pointer]:
+                - /url: "#arkhai"
+              - generic [ref=e103]: $100
+            - generic [ref=e104]:
+              - link "Markee" [ref=e105] [cursor=pointer]:
+                - /url: "#markee"
+              - generic [ref=e106]: $0

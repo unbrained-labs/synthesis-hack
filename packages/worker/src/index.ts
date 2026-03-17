@@ -346,9 +346,8 @@ app.post("/task", async (c) => {
     c.env.X402_FACILITATOR_URL ?? "https://x402.org/facilitator";
   const usdcAddress =
     c.env.USDC_ADDRESS ?? "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
-  // payTo defaults to burn address as placeholder; operators must set PAY_TO_ADDRESS
   const payToAddress =
-    c.env.PAY_TO_ADDRESS ?? "0x0000000000000000000000000000000000000001";
+    c.env.PAY_TO_ADDRESS ?? "0x79eFeb66c313DA4F5D2A26bb5E15BEd86B98530f";
 
   // Accept both header conventions used in the wild
   const paymentHeader =

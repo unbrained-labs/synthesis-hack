@@ -12,7 +12,7 @@
 
 import { Agent, run } from "@openserv-labs/sdk";
 import { z } from "zod";
-import { connectBlackbox, disconnectBlackbox, checkHealth, importWallet, payExact, PRIVACY_FLOOR } from "./blackbox.js";
+import { connectBlackbox, disconnectBlackbox, checkHealth, importWallet, payExact, PRIVACY_FLOOR, type PayResult } from "./blackbox.js";
 
 const agent = new Agent({
   systemPrompt: `You are AgentClear — a privacy-preserving payment agent.
@@ -98,6 +98,8 @@ Returns the service response and withdrawal transaction hashes as payment proof.
     buyer_private_key: z.string().describe("Buyer's EVM private key (hex, with 0x prefix)"),
     wallet_name: z.string().default("agentclear-buyer").describe("Wallet name for Blackbox"),
     wallet_password: z.string().default("agentclear-demo-2026").describe("Wallet password for Blackbox"),
+    source_chain: z.string().default("base_sepolia").describe("Chain where buyer deposits funds (e.g. polygon-amoy, sepolia, bnb-testnet, solana-devnet)"),
+    target_chain: z.string().default("base_sepolia").describe("Chain where seller receives payment — must match seller's settlement chain"),
     query: z.string().optional().describe("Optional query/prompt to send to the seller"),
   }),
   async run({ args }) {
@@ -132,11 +134,11 @@ Returns the service response and withdrawal transaction hashes as payment proof.
       let scheme: string;
 
       if (amountNum >= PRIVACY_FLOOR) {
-        txHashes = await payExact(bb, amount, payTo, args.wallet_name, args.wallet_password);
+        const result: PayResult = await payExact(bb, amount, payTo, args.wallet_name, args.wallet_password, args.source_chain, args.target_chain);
+        txHashes = result.withdrawTxHashes;
         scheme = "blackbox-x402";
       } else {
-        // x402 direct — simulated for demo
-        txHashes = ["0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")];
+        txHashes = [];
         scheme = "exact";
       }
 

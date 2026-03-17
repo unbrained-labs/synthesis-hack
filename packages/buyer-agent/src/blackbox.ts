@@ -39,6 +39,16 @@ interface WithdrawResult {
   tx_hash: string;
 }
 
+export interface PayResult {
+  depositTxHashes: string[];
+  withdrawTxHashes: string[];
+}
+
+/** Normalize chain identifiers — Blackbox uses underscores, some callers use hyphens. */
+function normalizeChain(chain: string): string {
+  return chain.replace(/-/g, "_");
+}
+
 function buildBlackboxEnv(): Record<string, string> {
   const env = { ...process.env } as Record<string, string>;
   for (let i = 1; i <= 5; i++) {
@@ -117,15 +127,16 @@ export async function importWallet(
 }
 
 async function getAvailableDenominations(bb: BlackboxClient, chain: string): Promise<number[]> {
+  const normalized = normalizeChain(chain);
   const result = await bb.client.callTool({
     name: "get_available_denominations",
-    arguments: { chain },
+    arguments: { chain: normalized },
   });
 
   const parsed = parseToolResult(result) as { denominations: Denomination[] };
 
   return (parsed.denominations ?? [])
-    .filter((d) => d.token_symbol === "USDC" && d.chain_name === chain)
+    .filter((d) => d.token_symbol === "USDC" && normalizeChain(d.chain_name) === normalized)
     .map((d) => parseFloat(d.denomination))
     .filter((n) => !isNaN(n) && n > 0)
     .sort((a, b) => b - a);
@@ -162,7 +173,7 @@ export async function payExact(
   walletPassword: string,
   sourceChain = "base_sepolia",
   targetChain = "base_sepolia"
-): Promise<string[]> {
+): Promise<PayResult> {
   const amountNum = parseFloat(amount);
 
   if (isNaN(amountNum) || amountNum <= 0) {
@@ -171,16 +182,18 @@ export async function payExact(
 
   if (amountNum < PRIVACY_FLOOR) {
     console.log(`  Amount ${amount} USDC < floor ${PRIVACY_FLOOR} → x402 direct`);
-    return [];
+    return { depositTxHashes: [], withdrawTxHashes: [] };
   }
 
-  const crossChain = sourceChain !== targetChain;
+  const srcChain = normalizeChain(sourceChain);
+  const tgtChain = normalizeChain(targetChain);
+  const crossChain = srcChain !== tgtChain;
   if (crossChain) {
-    console.log(`  Cross-chain route: ${sourceChain} → ${targetChain}`);
+    console.log(`  Cross-chain route: ${srcChain} → ${tgtChain}`);
   }
 
   console.log("  Fetching Blackbox denominations...");
-  const denoms = await getAvailableDenominations(bb, sourceChain);
+  const denoms = await getAvailableDenominations(bb, srcChain);
   console.log(`  Denominations: [${denoms.join(", ")}]`);
 
   if (denoms.length === 0) {
@@ -190,7 +203,8 @@ export async function payExact(
   const splits = decompose(amountNum, denoms);
   console.log(`  Decomposed ${amount} USDC → [${splits.join(", ")}]`);
 
-  const txHashes: string[] = [];
+  const depositTxHashes: string[] = [];
+  const withdrawTxHashes: string[] = [];
 
   for (let i = 0; i < splits.length; i++) {
     const denom = splits[i];
@@ -201,12 +215,12 @@ export async function payExact(
       arguments: {
         wallet_name: walletName,
         password: walletPassword,
-        chain_name: sourceChain,
+        chain_name: srcChain,
         amount: denom.toString(),
         token: "USDC",
         withdrawal_requests: [
           {
-            target_chain: targetChain,
+            target_chain: tgtChain,
             token_symbol: "USDC",
             denomination: denom.toString(),
           },
@@ -228,6 +242,7 @@ export async function payExact(
 
     const key = depositParsed.keys[0];
     console.log(`    Deposit tx: ${depositParsed.deposit_tx_hash}`);
+    if (depositParsed.deposit_tx_hash) depositTxHashes.push(depositParsed.deposit_tx_hash);
     console.log(`    Merkle root: ${key.merkle_root_id}`);
 
     const keyFile = path.join(
@@ -262,10 +277,10 @@ export async function payExact(
     }
 
     console.log(`    Withdraw tx: ${withdrawParsed.tx_hash}`);
-    txHashes.push(withdrawParsed.tx_hash);
+    withdrawTxHashes.push(withdrawParsed.tx_hash);
 
     try { fs.unlinkSync(keyFile); } catch { /* ignore */ }
   }
 
-  return txHashes;
+  return { depositTxHashes, withdrawTxHashes };
 }

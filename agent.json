@@ -3,7 +3,7 @@
   "name": "AgentClear",
   "version": "0.1.0",
   "description": "Privacy-preserving agent-to-agent commerce. Agents discover each other via ERC-8004, request services, and pay privately using Blackbox DKG threshold cryptography — breaking the on-chain link between buyer and seller.",
-  "operator_wallet": "0x8Cf5639485c86a6Ee464CE2Cac5739ea65D5ce03",
+  "operator_wallet": "0x79eFeb66c313DA4F5D2A26bb5E15BEd86B98530f",
   "erc8004": {
     "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
     "token_id": 1937,
@@ -15,7 +15,10 @@
     "agent_card": "https://agentclear-worker.ddohne.workers.dev/.well-known/agent-card.json",
     "task": "https://agentclear-worker.ddohne.workers.dev/task",
     "health": "https://agentclear-worker.ddohne.workers.dev/health",
-    "agent_txt": "https://agentclear-worker.ddohne.workers.dev/agent.txt"
+    "agent_txt": "https://agentclear-worker.ddohne.workers.dev/agent.txt",
+    "agent_json": "https://agentclear-worker.ddohne.workers.dev/agent.json",
+    "agent_log": "https://agentclear-worker.ddohne.workers.dev/agent_log.json",
+    "x402_discovery": "https://agentclear-worker.ddohne.workers.dev/.well-known/x402.json"
   },
   "tools": [
     {
@@ -45,7 +48,7 @@
     "USDC on Base Sepolia",
     "Cloudflare Workers"
   ],
-  "supported_chains": ["base-sepolia"],
+  "supported_chains": ["base-sepolia", "ethereum-sepolia", "polygon-amoy", "bnb-testnet", "hyperliquid-testnet", "solana-devnet"],
   "supported_tokens": ["USDC"],
   "payment_schemes": ["blackbox-x402", "x402-exact"],
   "privacy_floor_usdc": 0.5,
