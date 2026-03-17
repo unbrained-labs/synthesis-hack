@@ -90,6 +90,7 @@ Buyer Agent (Node.js + viem)
 | Payments | x402 (HTTP 402) |
 | Privacy | Blackbox Network MCP — DKG threshold cryptography |
 | Inference | Venice AI — no-data-retention, OpenAI-compatible |
+| Agent platform | OpenServ — x402-native service, ERC-8004 identity |
 | Settlement | USDC on Base Sepolia |
 | Agent hosting | Cloudflare Workers |
 | Wallet | viem (EVM keypair) |

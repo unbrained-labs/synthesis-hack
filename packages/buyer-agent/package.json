@@ -9,12 +9,15 @@
     "build": "tsc",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
-    "demo": "tsx src/index.ts"
+    "demo": "tsx src/index.ts",
+    "openserv": "tsx src/openserv-entry.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
+    "@openserv-labs/sdk": "^2.4.1",
     "dotenv": "^16.4.5",
-    "viem": "^2.21.54"
+    "viem": "^2.21.54",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
