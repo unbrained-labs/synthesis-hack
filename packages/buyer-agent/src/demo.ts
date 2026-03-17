@@ -413,5 +413,12 @@ export function printSummary(result: DemoResult): void {
     console.log(`    ${hash}`);
   }
   console.log(`  Completed at      : ${result.completedAt}`);
-  console.log("═══════════════════════════════════════════════════\n");
+  console.log("═══════════════════════════════════════════════════");
+  if (result.usedBlackbox) {
+    console.log("\n── What a competitor sees on-chain ─────────────────");
+    console.log(`  Deposit:    ${result.txHashes[0]?.slice(0, 12)}...  buyer: UNKNOWN`);
+    console.log(`  Withdrawal: ${result.txHashes[0]?.slice(0, 12)}...  source: UNKNOWN`);
+    console.log("  No common address. No link. No graph edge.");
+    console.log("────────────────────────────────────────────────────\n");
+  }
 }

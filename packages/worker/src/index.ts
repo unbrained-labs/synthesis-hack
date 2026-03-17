@@ -47,7 +47,10 @@ const AGENT_CARD = {
     "private-payment",
     "x402-auto-pay",
     "blackbox-routing",
+    "post-payment-reputation",
   ],
+  manifest: "https://agentclear-worker.ddohne.workers.dev/agent.json",
+  discovery: "https://agentclear-worker.ddohne.workers.dev/.well-known/x402.json",
 } as const;
 
 // 1 USDC = 1_000_000 (6 decimals)
@@ -355,6 +358,106 @@ app.post("/task", async (c) => {
     },
     200
   );
+});
+
+/**
+ * DevSpot Agent Manifest — required by Protocol Labs bounty.
+ * Serves agent.json so judge agents can discover it programmatically.
+ */
+app.get("/agent.json", (c) => {
+  const payToAddress =
+    c.env.PAY_TO_ADDRESS ?? "0x79eFeb66c313DA4F5D2A26bb5E15BEd86B98530f";
+
+  return c.json({
+    schema_version: "1.0",
+    name: "AgentClear",
+    version: "0.1.0",
+    description:
+      "Privacy-preserving agent-to-agent commerce. Agents discover each other via ERC-8004, request services, and pay privately using Blackbox DKG threshold cryptography — breaking the on-chain link between buyer and seller.",
+    operator_wallet: payToAddress,
+    erc8004: {
+      registry: "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+      token_id: 1937,
+      network: "base-sepolia",
+      agent_card_url:
+        "https://agentclear-worker.ddohne.workers.dev/.well-known/agent-card.json",
+      registration_tx:
+        "0x303a30de1523ca8ea28e4d327e2eb14a864db7d02dbb57e2ccd9b59a60b57479",
+    },
+    endpoints: {
+      agent_card:
+        "https://agentclear-worker.ddohne.workers.dev/.well-known/agent-card.json",
+      task: "https://agentclear-worker.ddohne.workers.dev/task",
+      health: "https://agentclear-worker.ddohne.workers.dev/health",
+      agent_txt: "https://agentclear-worker.ddohne.workers.dev/agent.txt",
+      agent_json: "https://agentclear-worker.ddohne.workers.dev/agent.json",
+    },
+    tools: [
+      { name: "probe_seller", description: "Discover seller via ERC-8004 and receive HTTP 402 payment instructions" },
+      { name: "blackbox_deposit_and_claim", description: "Deposit USDC into Blackbox treasury and claim a one-time DKG withdrawal key (3-of-5 threshold)" },
+      { name: "blackbox_withdraw_onchain", description: "Execute on-chain withdrawal from one-time key to seller — breaks buyer→seller on-chain link" },
+      { name: "verify_payment", description: "Fetch TX receipt on Base Sepolia, verify ERC-20 Transfer log, write ERC-8004 reputation post-payment" },
+    ],
+    tech_stack: ["Node.js 18+", "TypeScript", "viem", "Blackbox MCP", "ERC-8004", "x402", "USDC on Base Sepolia", "Cloudflare Workers", "Venice AI"],
+    supported_chains: ["base-sepolia"],
+    supported_tokens: ["USDC"],
+    payment_schemes: ["blackbox-x402", "x402-exact"],
+    privacy_floor_usdc: 0.5,
+    compute_constraints: { blackbox_dkg_latency_seconds: "15-30", min_payment_usdc: 0.001, max_payment_usdc: 1000 },
+    task_categories: ["agent-discovery", "private-payment", "payment-routing", "on-chain-verification", "reputation-tracking"],
+    safety_guardrails: [
+      "Validates payment amount before executing withdrawal",
+      "1% fee tolerance for gas and relay fees",
+      "One-time withdrawal keys with on-chain nullifier",
+      "DKG threshold (3-of-5) — no single node holds complete key",
+    ],
+    repository: "https://github.com/unbrained-labs/synthesis-hack",
+  }, 200, { "Cache-Control": "public, max-age=300" });
+});
+
+/**
+ * x402 discovery endpoint — makes AgentClear automatically discoverable
+ * by AgentCash (Merit Systems bounty) and other x402 discovery clients.
+ */
+app.get("/.well-known/x402.json", (c) => {
+  const usdcAddress =
+    c.env.USDC_ADDRESS ?? "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+  const payToAddress =
+    c.env.PAY_TO_ADDRESS ?? "0x79eFeb66c313DA4F5D2A26bb5E15BEd86B98530f";
+
+  return c.json({
+    version: "2",
+    resources: [
+      {
+        url: "https://agentclear-worker.ddohne.workers.dev/task",
+        type: "http",
+        description: "AgentClear private intelligence task — pay once, get AI analysis with no metadata leak",
+        accepts: [
+          {
+            scheme: "exact",
+            network: BASE_SEPOLIA_CHAIN,
+            amount: TASK_PRICE_USDC,
+            asset: usdcAddress,
+            payTo: payToAddress,
+            maxTimeoutSeconds: 60,
+            extra: { name: "USDC", decimals: 6 },
+          },
+        ],
+        outputSchema: {
+          type: "object",
+          properties: {
+            result: { type: "string" },
+            paymentVerified: { type: "boolean" },
+          },
+        },
+        metadata: {
+          category: "intelligence",
+          tags: ["privacy", "agent-commerce", "x402", "erc-8004"],
+          privacyModel: "Blackbox DKG — no on-chain buyer/seller link",
+        },
+      },
+    ],
+  }, 200, { "Cache-Control": "public, max-age=300" });
 });
 
 /** Catch-all 404 */

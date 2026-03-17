@@ -1,0 +1,193 @@
+{
+  "agent": "AgentClear",
+  "version": "0.1.0",
+  "run_id": "agentclear-demo-20260316-001",
+  "started_at": "2026-03-16T14:00:00Z",
+  "completed_at": "2026-03-16T14:01:47Z",
+  "status": "success",
+  "steps": [
+    {
+      "step": 1,
+      "name": "wallet_setup",
+      "decision": "Initialize buyer wallet from BUYER_PRIVATE_KEY env var using viem",
+      "tool": "createBuyerWallet",
+      "input": { "source": "env:BUYER_PRIVATE_KEY" },
+      "output": { "address": "0x8Cf5639485c86a6Ee464CE2Cac5739ea65D5ce03" },
+      "status": "success",
+      "duration_ms": 12
+    },
+    {
+      "step": 2,
+      "name": "connect_blackbox_mcp",
+      "decision": "Spawn Blackbox MCP subprocess to access DKG threshold cryptography without custom SDK",
+      "tool": "connectBlackbox",
+      "input": { "command": "npx blackbox-mcp@latest" },
+      "output": { "connected": true },
+      "status": "success",
+      "duration_ms": 3420
+    },
+    {
+      "step": 3,
+      "name": "check_blackbox_health",
+      "decision": "Verify DKG node liveness before attempting payment — abort if < 3 nodes reachable",
+      "tool": "check_health",
+      "input": {},
+      "output": { "status": "ok", "peer_count": 4, "threshold": 3 },
+      "status": "success",
+      "duration_ms": 890
+    },
+    {
+      "step": 4,
+      "name": "import_wallet_to_blackbox",
+      "decision": "Register buyer keypair with Blackbox MCP so it can sign deposits on our behalf",
+      "tool": "import_wallet",
+      "input": {
+        "name": "agentclear-buyer",
+        "password": "[redacted]"
+      },
+      "output": { "imported": true },
+      "status": "success",
+      "duration_ms": 1100
+    },
+    {
+      "step": 5,
+      "name": "probe_seller",
+      "decision": "POST to seller endpoint without payment header to discover payment requirements",
+      "tool": "fetch",
+      "input": { "url": "http://localhost:4022/analyze", "method": "POST" },
+      "output": {
+        "status": 402,
+        "payment_required": {
+          "amount": "1.0",
+          "pay_to": "0x79eFeb66c313DA4F5D2A26bb5E15BEd86B98530f",
+          "network": "base-sepolia",
+          "token": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+          "scheme": "exact"
+        }
+      },
+      "status": "success",
+      "duration_ms": 210
+    },
+    {
+      "step": 6,
+      "name": "payment_routing_decision",
+      "decision": "Amount 1.0 USDC >= privacy_floor 0.5 USDC → route via Blackbox DKG for privacy. Would use x402 direct for amounts < 0.5 USDC.",
+      "tool": null,
+      "input": { "amount": 1.0, "privacy_floor": 0.5 },
+      "output": { "route": "blackbox-dkg" },
+      "status": "success",
+      "duration_ms": 0
+    },
+    {
+      "step": 7,
+      "name": "fetch_denominations",
+      "decision": "Fetch available Blackbox merkle roots to determine how to decompose 1.0 USDC",
+      "tool": "get_available_denominations",
+      "input": { "chain": "base_sepolia" },
+      "output": {
+        "denominations": [10.0, 5.0, 2.0, 1.0, 0.5, 0.1]
+      },
+      "status": "success",
+      "duration_ms": 670
+    },
+    {
+      "step": 8,
+      "name": "decompose_amount",
+      "decision": "Greedy coin-change: 1.0 USDC → [1.0] (single denomination, no splitting needed)",
+      "tool": "decompose",
+      "input": { "amount": 1.0, "denominations": [10.0, 5.0, 2.0, 1.0, 0.5, 0.1] },
+      "output": { "splits": [1.0] },
+      "status": "success",
+      "duration_ms": 1
+    },
+    {
+      "step": 9,
+      "name": "deposit_and_claim",
+      "decision": "Deposit 1.0 USDC into Blackbox treasury and claim one-time withdrawal key via 3-of-5 DKG",
+      "tool": "deposit_and_claim",
+      "input": {
+        "wallet_name": "agentclear-buyer",
+        "chain_name": "base_sepolia",
+        "amount": "1.0",
+        "token": "USDC",
+        "withdrawal_requests": [{ "target_chain": "base_sepolia", "token_symbol": "USDC", "denomination": "1.0" }]
+      },
+      "output": {
+        "success": true,
+        "deposit_tx_hash": "0x6f73f279559bcfbc3e118a5ad223507e92844bfeabf35853d71dec27b277bb8a",
+        "keys_count": 1,
+        "merkle_root_id": 42
+      },
+      "status": "success",
+      "duration_ms": 18400
+    },
+    {
+      "step": 10,
+      "name": "withdraw_onchain",
+      "decision": "Execute withdrawal from one-time key to seller address — this TX has no on-chain link to buyer's deposit",
+      "tool": "withdraw_onchain",
+      "input": {
+        "recipient": "0x79eFeb66c313DA4F5D2A26bb5E15BEd86B98530f",
+        "chain_name": "base_sepolia",
+        "amount": "1.0",
+        "token_decimals": 6
+      },
+      "output": {
+        "tx_hash": "0xc5bb1f915607fd8d3623b98fc1b7327f245a681b53f33d45b475deb2eba1d10a"
+      },
+      "status": "success",
+      "duration_ms": 14200
+    },
+    {
+      "step": 11,
+      "name": "build_payment_header",
+      "decision": "Encode payment proof as base64 JSON for X-PAYMENT header",
+      "tool": "buildPaymentHeader",
+      "input": {
+        "scheme": "blackbox-x402",
+        "tx_hashes": ["0xc5bb1f915607fd8d3623b98fc1b7327f245a681b53f33d45b475deb2eba1d10a"]
+      },
+      "output": { "header_length": 284 },
+      "status": "success",
+      "duration_ms": 1
+    },
+    {
+      "step": 12,
+      "name": "retry_with_payment",
+      "decision": "POST to seller with X-PAYMENT header — seller verifies TX receipt on-chain before returning service",
+      "tool": "fetch",
+      "input": {
+        "url": "http://localhost:4022/analyze",
+        "method": "POST",
+        "headers": { "X-PAYMENT": "[base64-encoded-proof]" }
+      },
+      "output": {
+        "status": 200,
+        "response": {
+          "report": {
+            "analysis": "Payment verified. Service delivered.",
+            "paymentVerified": true,
+            "scheme": "blackbox-x402",
+            "txHash": "0xc5bb1f915607fd8d3623b98fc1b7327f245a681b53f33d45b475deb2eba1d10a"
+          }
+        }
+      },
+      "status": "success",
+      "duration_ms": 3800
+    }
+  ],
+  "summary": {
+    "total_steps": 12,
+    "succeeded": 12,
+    "failed": 0,
+    "retries": 0,
+    "buyer_address": "0x8Cf5639485c86a6Ee464CE2Cac5739ea65D5ce03",
+    "seller_address": "0x79eFeb66c313DA4F5D2A26bb5E15BEd86B98530f",
+    "amount_paid_usdc": 1.0,
+    "deposit_tx": "0x6f73f279559bcfbc3e118a5ad223507e92844bfeabf35853d71dec27b277bb8a",
+    "withdrawal_tx": "0xc5bb1f915607fd8d3623b98fc1b7327f245a681b53f33d45b475deb2eba1d10a",
+    "privacy_proof": "Deposit and withdrawal transactions share no on-chain addresses",
+    "route_used": "blackbox-dkg",
+    "total_duration_ms": 42704
+  }
+}

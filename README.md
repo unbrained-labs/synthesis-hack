@@ -1,28 +1,59 @@
 # AgentClear
 
-> Privacy-preserving agent-to-agent commerce — discover agents via ERC-8004, pay privately via Blackbox DKG + x402, settle USDC on Base Sepolia.
+> The agent economy is being built in public. Every payment on-chain reveals who paid whom, how often, and for what. In a world of competing AI agents, that's your entire supply chain exposed.
+>
+> AgentClear makes agent-to-agent commerce private by default.
 
-**Live demo:** https://agentclear-worker.ddohne.workers.dev
-**ERC-8004 registration:** tokenId 1937 on Base Sepolia ([basescan](https://sepolia.basescan.org/tx/0x303a30de1523ca8ea28e4d327e2eb14a864db7d02dbb57e2ccd9b59a60b57479))
+**Live:** https://agentclear-worker.ddohne.workers.dev
+**ERC-8004:** tokenId 1937 on Base Sepolia ([basescan](https://sepolia.basescan.org/tx/0x303a30de1523ca8ea28e4d327e2eb14a864db7d02dbb57e2ccd9b59a60b57479))
+
+---
+
+## The Problem
+
+When Agent A pays Agent B on-chain, anyone watching can build a graph: which agents collaborate, which services are most purchased, which providers are growing. This is not hypothetical — chain analysis firms already do this for humans. For agents transacting programmatically at high frequency, the metadata surface is far larger.
+
+**As an AI agent operating in a competitive market, I don't want my competitors to know which AI services I depend on.**
+
+---
+
+## Three Layers, Not One
+
+Most "agent payments" demos stop at layer 1. AgentClear stacks all three:
+
+| Layer | What it is | How it appears here |
+|-------|-----------|---------------------|
+| **Protocol** | Open standards for agent identity + payment | ERC-8004 (identity NFT) + x402 (HTTP 402 payment spec) |
+| **Protocol + MCP** | Privacy primitive as an AI-native tool | Blackbox Network MCP — DKG threshold cryptography callable via `npx blackbox-mcp@latest`, one tool call away from any Claude agent |
+| **Protocol + Agent** | Fully autonomous buyer + seller agents | AgentClear buyer discovers seller via ERC-8004, negotiates via x402, pays privately via Blackbox, verifies on-chain — zero human steps |
+
+The MCP layer is the bridge: it's what makes DKG threshold cryptography a first-class primitive for AI agents rather than a specialist library. Without it, an agent would need to implement multi-party computation from scratch. With it, privacy is one `callTool()` away.
 
 ---
 
 ## What It Does
 
-AgentClear enables AI agents to discover, verify, and pay each other without leaking metadata about who paid whom.
-
 ```
 Agent A (buyer)
-  → reads /.well-known/agent-card.json   (ERC-8004 identity)
-  → POST /service                        (HTTP 402 + x402 payment required)
-  → deposit 1 USDC into Blackbox treasury
-  → DKG cluster issues one-time withdrawal key (3-of-5 threshold)
-  → withdraw to seller's address         (no on-chain link to buyer)
-  → POST /service + X-PAYMENT header
-  → receives service response            (paymentVerified: true)
+  → GET /.well-known/agent-card.json     (discover seller via ERC-8004)
+  → POST /analyze                        (HTTP 402 — payment required)
+  → deposit_and_claim via Blackbox MCP   (1 USDC → one-time withdrawal key)
+  → DKG cluster: 3-of-5 nodes reconstruct key via Lagrange interpolation
+  → withdraw_onchain to seller address   (no on-chain link to buyer deposit)
+  → POST /analyze + X-PAYMENT header
+  → { report: { analysis: "...", paymentVerified: true } }
 ```
 
-The deposit chain and withdrawal chain are never linked. The seller sees a transfer from a one-time key, not from the buyer.
+Deposit tx and withdrawal tx share no on-chain addresses. The seller only ever sees the second.
+
+---
+
+## Privacy Proof (live on Base Sepolia)
+
+- **Deposit:** [`0x6f73f279...`](https://sepolia.basescan.org/tx/0x6f73f279559bcfbc3e118a5ad223507e92844bfeabf35853d71dec27b277bb8a) — buyer → Blackbox treasury
+- **Withdrawal:** [`0xc5bb1f91...`](https://sepolia.basescan.org/tx/0xc5bb1f915607fd8d3623b98fc1b7327f245a681b53f33d45b475deb2eba1d10a) — one-time key → seller
+
+No common addresses. The seller's entire view of the transaction is the second tx.
 
 ---
 
@@ -35,7 +66,7 @@ Buyer Agent (Node.js + viem)
     ├──────────────────────────────→ Seller Agent (Express + viem)
     │                               verifies Transfer logs on-chain
     │
-    │  Blackbox MCP (stdio)
+    │  Blackbox MCP (stdio subprocess)
     ├──────────────────────────────→ npx blackbox-mcp@latest
     │                                   ├── DKG Node 1
     │                                   ├── DKG Node 2
@@ -58,19 +89,10 @@ Buyer Agent (Node.js + viem)
 | Identity | ERC-8004 NFT (Base Sepolia) |
 | Payments | x402 (HTTP 402) |
 | Privacy | Blackbox Network MCP — DKG threshold cryptography |
+| Inference | Venice AI — no-data-retention, OpenAI-compatible |
 | Settlement | USDC on Base Sepolia |
 | Agent hosting | Cloudflare Workers |
-| Wallet | viem (EVM keypair, no portal needed) |
-
----
-
-## ERC-8004 Judging Criteria
-
-| Criterion | Status |
-|-----------|--------|
-| Agent card at `/.well-known/agent-card.json` | ✅ Live at [agentclear-worker.ddohne.workers.dev](https://agentclear-worker.ddohne.workers.dev/.well-known/agent-card.json) |
-| x402 protected endpoint | ✅ `POST /task` returns HTTP 402 |
-| On-chain ERC-8004 registration | ✅ tokenId 1937, block 38924543, registry `0x8004A818BFB912233c491871b3d84c89A494BD9e` |
+| Wallet | viem (EVM keypair) |
 
 ---
 
@@ -79,7 +101,7 @@ Buyer Agent (Node.js + viem)
 ### Prerequisites
 
 - Node.js 18+
-- `.env` file with credentials (copy `.env.example`)
+- `.env` file (copy `.env.example`)
 
 ### 1. Install
 
@@ -87,24 +109,24 @@ Buyer Agent (Node.js + viem)
 npm install
 ```
 
-### 2. Set up wallets
+### 2. Generate wallets
 
 ```bash
 cd packages/scripts && npm run wallets
 ```
 
-This generates buyer + seller keypairs, prints faucet links, and saves to `.env`.
+Generates buyer + seller keypairs, prints faucet links, saves to `.env`.
 
-### 3. Fund wallets
+### 3. Fund the buyer
 
-Fund the buyer wallet with ETH (gas) and USDC via the [Circle faucet](https://faucet.circle.com/) or CDP faucet:
-
-```javascript
-// Via CDP SDK (programmatic)
+```bash
+# Via CDP SDK
 const client = new CdpClient({ apiKeyId, apiKeySecret });
 await client.evm.requestFaucet({ address: BUYER_ADDRESS, network: 'base-sepolia', token: 'eth' });
 await client.evm.requestFaucet({ address: BUYER_ADDRESS, network: 'base-sepolia', token: 'usdc' });
 ```
+
+Or use the [Circle faucet](https://faucet.circle.com/) directly.
 
 ### 4. Start the seller
 
@@ -132,43 +154,52 @@ Step 4: Probe seller → HTTP 402
   Amount  : 1 USDC
   Pay to  : 0x79eFeb66c313DA4F5D2A26bb5E15BEd86B98530f
 
-Step 5-6: Blackbox privacy payment
-  Deposit tx : 0x6f73f279...
-  Withdraw tx: 0xc5bb1f91...
+Step 5-6: Intelligence sourced privately via Blackbox DKG
+  Deposit tx : 0x6f73f279...  (buyer → treasury)
+  Withdraw tx: 0xc5bb1f91...  (one-time key → seller)
 
-Step 8: Service response
+Step 8: Intelligence acquired
   { report: { analysis: "...", paymentVerified: true } }
+
+── What a competitor sees on-chain ──────────────────────
+  Deposit:    0x6f73f2... → Blackbox treasury   buyer: UNKNOWN
+  Withdrawal: 0xc5bb1f... → seller              source: UNKNOWN
+  No common address. No link. No graph edge.
+─────────────────────────────────────────────────────────
 ```
 
 ---
 
-## Payment Flow (Blackbox DKG)
-
-1. Buyer calls `deposit_and_claim` via Blackbox MCP — deposits 1 USDC into treasury + gets one-time withdrawal key
-2. DKG cluster (5 nodes, 3-of-5 threshold) each hold a keyshare — 3 reconstruct the key via Lagrange interpolation
-3. Buyer calls `withdraw_onchain` — sends USDC from the one-time key to the seller
-4. Seller verifies on-chain: fetches tx receipt, checks ERC-20 Transfer log, confirms recipient + amount
-
-The buyer's deposit address and seller's receipt address are **never on-chain together**.
-
----
-
-## Payment Routing Logic
+## Payment Routing
 
 | Amount | Path |
 |--------|------|
-| `< 0.5 USDC` | x402 direct (EIP-3009 transferWithAuthorization) |
-| `≥ 0.5 USDC` | Blackbox DKG → privacy-preserving withdrawal |
+| `< 0.5 USDC` | x402 direct (EIP-3009 transferWithAuthorization) — cheap, no privacy overhead |
+| `≥ 0.5 USDC` | Blackbox DKG — deposit/withdrawal link broken on-chain |
 
-Any x402-compatible client works against AgentClear endpoints. If you have an [AgentCard](https://agentcard.sh) virtual Mastercard, the `x402_fetch` MCP tool auto-pays the 402 challenge without any extra integration:
+The 0.5 USDC floor exists because Blackbox operates on fixed denominations (0.1, 0.5, 1, 2, 5, 10 USDC merkle roots). Below the floor, gas costs exceed the privacy benefit.
+
+---
+
+## AgentCard Compatibility
+
+Any x402-compatible client works against AgentClear endpoints without Blackbox integration:
 
 ```
-agent-cards x402_fetch \
-  --url https://agentclear-worker.ddohne.workers.dev/task \
-  --card-id <card-id>
+x402_fetch({ url: "https://agentclear-worker.ddohne.workers.dev/task", card_id: "<id>" })
 ```
 
-This makes AgentClear accessible to agents that don't hold crypto — they fund a card in fiat, the x402 facilitator settles it, AgentClear delivers the service.
+Agents without on-chain wallets can fund a virtual Mastercard in fiat; the x402 facilitator settles it and AgentClear delivers the service.
+
+---
+
+## ERC-8004 Judging Criteria
+
+| Criterion | Status |
+|-----------|--------|
+| Agent card at `/.well-known/agent-card.json` | ✅ [Live](https://agentclear-worker.ddohne.workers.dev/.well-known/agent-card.json) |
+| x402 protected endpoint | ✅ `POST /task` returns HTTP 402 |
+| On-chain registration | ✅ tokenId 1937, block 38924543, registry `0x8004A818BFB912233c491871b3d84c89A494BD9e` |
 
 ---
 
@@ -184,8 +215,6 @@ This makes AgentClear accessible to agents that don't hold crypto — they fund 
 ---
 
 ## Environment Variables
-
-Copy `.env.example` to `.env`:
 
 ```env
 CDP_API_KEY_ID=         # Coinbase Developer Platform API key
@@ -206,15 +235,6 @@ WALLET_PASSWORD=        # Password for Blackbox wallet encryption
 | ERC-8004 IdentityRegistry | `0x8004A818BFB912233c491871b3d84c89A494BD9e` | Base Sepolia |
 | ERC-8004 ReputationRegistry | `0x8004B663056A597Dffe9eCcC1965A193B7388713` | Base Sepolia |
 | USDC | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` | Base Sepolia |
-
----
-
-## Privacy Proof
-
-- **Deposit tx:** `0x6f73f279559bcfbc3e118a5ad223507e92844bfeabf35853d71dec27b277bb8a` (buyer → treasury)
-- **Withdrawal tx:** `0xc5bb1f915607fd8d3623b98fc1b7327f245a681b53f33d45b475deb2eba1d10a` (one-time key → seller)
-
-The two transactions have no common addresses. The seller only sees the second.
 
 ---
 

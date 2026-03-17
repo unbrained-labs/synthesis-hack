@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "name": "AgentClear",
+  "version": "0.1.0",
+  "description": "Privacy-preserving agent-to-agent commerce. Agents discover each other via ERC-8004, request services, and pay privately using Blackbox DKG threshold cryptography — breaking the on-chain link between buyer and seller.",
+  "operator_wallet": "0x8Cf5639485c86a6Ee464CE2Cac5739ea65D5ce03",
+  "erc8004": {
+    "registry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "token_id": 1937,
+    "network": "base-sepolia",
+    "agent_card_url": "https://agentclear-worker.ddohne.workers.dev/.well-known/agent-card.json",
+    "registration_tx": "0x303a30de1523ca8ea28e4d327e2eb14a864db7d02dbb57e2ccd9b59a60b57479"
+  },
+  "endpoints": {
+    "agent_card": "https://agentclear-worker.ddohne.workers.dev/.well-known/agent-card.json",
+    "task": "https://agentclear-worker.ddohne.workers.dev/task",
+    "health": "https://agentclear-worker.ddohne.workers.dev/health",
+    "agent_txt": "https://agentclear-worker.ddohne.workers.dev/agent.txt"
+  },
+  "tools": [
+    {
+      "name": "probe_seller",
+      "description": "GET /.well-known/agent-card.json and POST to service endpoint to receive HTTP 402 payment instructions"
+    },
+    {
+      "name": "blackbox_deposit_and_claim",
+      "description": "Deposit USDC into Blackbox treasury and claim a one-time DKG withdrawal key (3-of-5 threshold)"
+    },
+    {
+      "name": "blackbox_withdraw_onchain",
+      "description": "Execute on-chain withdrawal from one-time key to seller address, breaking the buyer→seller on-chain link"
+    },
+    {
+      "name": "verify_payment",
+      "description": "Fetch TX receipt on Base Sepolia and verify ERC-20 Transfer log against expected recipient and amount"
+    }
+  ],
+  "tech_stack": [
+    "Node.js 18+",
+    "TypeScript",
+    "viem",
+    "Blackbox MCP (npx blackbox-mcp@latest)",
+    "ERC-8004",
+    "x402 / HTTP 402",
+    "USDC on Base Sepolia",
+    "Cloudflare Workers"
+  ],
+  "supported_chains": ["base-sepolia"],
+  "supported_tokens": ["USDC"],
+  "payment_schemes": ["blackbox-x402", "x402-exact"],
+  "privacy_floor_usdc": 0.5,
+  "compute_constraints": {
+    "blackbox_dkg_latency_seconds": "15-30",
+    "max_denominations_per_payment": 20,
+    "min_payment_usdc": 0.001,
+    "max_payment_usdc": 1000
+  },
+  "task_categories": [
+    "agent-discovery",
+    "private-payment",
+    "payment-routing",
+    "on-chain-verification",
+    "reputation-tracking"
+  ],
+  "safety_guardrails": [
+    "Validates payment amount against expected before executing withdrawal",
+    "1% fee tolerance to account for gas and relay fees",
+    "One-time withdrawal keys — on-chain nullifier prevents reuse",
+    "DKG threshold (3-of-5) — no single node holds complete key"
+  ],
+  "repository": "https://github.com/unbrained-labs/synthesis-hack",
+  "contact": "https://agentclear-worker.ddohne.workers.dev"
+}
