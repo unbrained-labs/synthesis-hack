@@ -60,6 +60,10 @@ interface DemoResult {
   serviceResponse: unknown;
   /** ISO timestamp */
   completedAt: string;
+  /** Source chain for deposit (may differ from target) */
+  sourceChain: string;
+  /** Target chain for withdrawal (seller's chain) */
+  targetChain: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -253,8 +257,12 @@ async function retryWithPayment(
 export async function runDemo(): Promise<DemoResult> {
   const sellerUrl = process.env.SELLER_URL ?? "http://localhost:4022/analyze";
   const walletName = "agentclear-buyer";
-  const walletPassword =
-    process.env.WALLET_PASSWORD ?? "agentclear-demo-2026";
+  const walletPassword = process.env.WALLET_PASSWORD ?? "agentclear-demo-2026";
+  // SOURCE_CHAIN: chain where buyer holds funds (deposit side)
+  // TARGET_CHAIN: chain where seller receives payment (withdrawal side)
+  // Cross-chain example: SOURCE_CHAIN=polygon-amoy TARGET_CHAIN=base_sepolia
+  const sourceChain = process.env.SOURCE_CHAIN ?? "base_sepolia";
+  const targetChain = process.env.TARGET_CHAIN ?? "base_sepolia";
 
   console.log("═══════════════════════════════════════════════════");
   console.log("  AgentClear — Privacy Payment Demo");
@@ -337,7 +345,9 @@ export async function runDemo(): Promise<DemoResult> {
         instructions.amount,
         instructions.payTo,
         walletName,
-        walletPassword
+        walletPassword,
+        sourceChain,
+        targetChain
       );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -391,6 +401,8 @@ export async function runDemo(): Promise<DemoResult> {
     txHashes,
     serviceResponse,
     completedAt: new Date().toISOString(),
+    sourceChain,
+    targetChain,
   };
 
   return result;
@@ -401,12 +413,17 @@ export function printSummary(result: DemoResult): void {
   console.log("═══════════════════════════════════════════════════");
   console.log("  AgentClear — Flow Summary");
   console.log("═══════════════════════════════════════════════════");
+  const crossChain = result.sourceChain !== result.targetChain;
   console.log(`  Buyer address     : ${result.buyerAddress}`);
   console.log(`  Seller URL        : ${result.sellerUrl}`);
   console.log(`  Amount paid       : ${result.paymentInstructions.amount} USDC`);
   console.log(`  Recipient         : ${result.paymentInstructions.payTo}`);
+  if (crossChain) {
+    console.log(`  Deposit chain     : ${result.sourceChain}`);
+    console.log(`  Settlement chain  : ${result.targetChain}`);
+  }
   console.log(
-    `  Privacy routing   : ${result.usedBlackbox ? "Blackbox DKG" : "x402 direct"}`
+    `  Privacy routing   : ${result.usedBlackbox ? `Blackbox DKG${crossChain ? ` (cross-chain: ${result.sourceChain} → ${result.targetChain})` : ""}` : "x402 direct"}`
   );
   console.log(`  Tx hashes         :`);
   for (const hash of result.txHashes) {
@@ -416,9 +433,15 @@ export function printSummary(result: DemoResult): void {
   console.log("═══════════════════════════════════════════════════");
   if (result.usedBlackbox) {
     console.log("\n── What a competitor sees on-chain ─────────────────");
-    console.log(`  Deposit:    ${result.txHashes[0]?.slice(0, 12)}...  buyer: UNKNOWN`);
-    console.log(`  Withdrawal: ${result.txHashes[0]?.slice(0, 12)}...  source: UNKNOWN`);
-    console.log("  No common address. No link. No graph edge.");
+    if (crossChain) {
+      console.log(`  Deposit:    ${result.txHashes[0]?.slice(0, 12)}...  chain: ${result.sourceChain}   buyer: UNKNOWN`);
+      console.log(`  Withdrawal: ${result.txHashes[0]?.slice(0, 12)}...  chain: ${result.targetChain}  source: UNKNOWN`);
+      console.log("  Different chains. No common address. No link. No graph edge.");
+    } else {
+      console.log(`  Deposit:    ${result.txHashes[0]?.slice(0, 12)}...  buyer: UNKNOWN`);
+      console.log(`  Withdrawal: ${result.txHashes[0]?.slice(0, 12)}...  source: UNKNOWN`);
+      console.log("  No common address. No link. No graph edge.");
+    }
     console.log("────────────────────────────────────────────────────\n");
   }
 }

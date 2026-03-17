@@ -116,20 +116,16 @@ export async function importWallet(
   console.log("  Wallet import:", JSON.stringify(parseToolResult(result), null, 2));
 }
 
-async function getAvailableDenominations(bb: BlackboxClient): Promise<number[]> {
+async function getAvailableDenominations(bb: BlackboxClient, chain: string): Promise<number[]> {
   const result = await bb.client.callTool({
     name: "get_available_denominations",
-    arguments: { chain: "base_sepolia" },
+    arguments: { chain },
   });
 
   const parsed = parseToolResult(result) as { denominations: Denomination[] };
 
   return (parsed.denominations ?? [])
-    .filter(
-      (d) =>
-        d.token_symbol === "USDC" &&
-        (d.chain_name === "base_sepolia" || d.chain_name === "base-sepolia")
-    )
+    .filter((d) => d.token_symbol === "USDC" && d.chain_name === chain)
     .map((d) => parseFloat(d.denomination))
     .filter((n) => !isNaN(n) && n > 0)
     .sort((a, b) => b - a);
@@ -163,7 +159,9 @@ export async function payExact(
   amount: string,
   recipient: string,
   walletName: string,
-  walletPassword: string
+  walletPassword: string,
+  sourceChain = "base_sepolia",
+  targetChain = "base_sepolia"
 ): Promise<string[]> {
   const amountNum = parseFloat(amount);
 
@@ -176,12 +174,17 @@ export async function payExact(
     return [];
   }
 
+  const crossChain = sourceChain !== targetChain;
+  if (crossChain) {
+    console.log(`  Cross-chain route: ${sourceChain} → ${targetChain}`);
+  }
+
   console.log("  Fetching Blackbox denominations...");
-  const denoms = await getAvailableDenominations(bb);
+  const denoms = await getAvailableDenominations(bb, sourceChain);
   console.log(`  Denominations: [${denoms.join(", ")}]`);
 
   if (denoms.length === 0) {
-    throw new Error("No USDC denominations available on base_sepolia");
+    throw new Error(`No USDC denominations available on ${sourceChain}`);
   }
 
   const splits = decompose(amountNum, denoms);
@@ -198,12 +201,12 @@ export async function payExact(
       arguments: {
         wallet_name: walletName,
         password: walletPassword,
-        chain_name: "base_sepolia",
+        chain_name: sourceChain,
         amount: denom.toString(),
         token: "USDC",
         withdrawal_requests: [
           {
-            target_chain: "base_sepolia",
+            target_chain: targetChain,
             token_symbol: "USDC",
             denomination: denom.toString(),
           },

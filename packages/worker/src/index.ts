@@ -464,7 +464,7 @@ app.get("/agent.json", (c) => {
       { name: "verify_payment", description: "Fetch TX receipt on Base Sepolia, verify ERC-20 Transfer log, write ERC-8004 reputation post-payment" },
     ],
     tech_stack: ["Node.js 18+", "TypeScript", "viem", "Blackbox MCP", "ERC-8004", "x402", "USDC on Base Sepolia", "Cloudflare Workers", "Venice AI"],
-    supported_chains: ["base-sepolia"],
+    supported_chains: ["base-sepolia", "ethereum-sepolia", "polygon-amoy", "bnb-testnet", "hyperliquid-testnet", "solana-devnet"],
     supported_tokens: ["USDC"],
     payment_schemes: ["blackbox-x402", "x402-exact"],
     privacy_floor_usdc: 0.5,
