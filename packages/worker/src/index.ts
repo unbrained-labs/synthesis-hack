@@ -16,6 +16,16 @@ interface FacilitatorVerifyResponse {
   error?: string;
 }
 
+interface BlackboxPaymentHeader {
+  scheme: "blackbox-x402";
+  network: string;
+  token: string;
+  payTo: string;
+  amount: string;
+  txHashes: string[];
+  timestamp: string;
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const AGENT_CARD = {
@@ -119,6 +129,14 @@ function buildPaymentRequiredBody(payToAddress: string, usdcAddress: string) {
         maxTimeoutSeconds: 60,
         extra: { name: "USDC", decimals: 6, version: "2" },
       },
+      {
+        scheme: "blackbox-x402",
+        network: "base-sepolia",
+        amount: "1.0",
+        asset: usdcAddress,
+        payTo: payToAddress,
+        description: "Privacy-preserving payment via Blackbox DKG — no on-chain link between payer and recipient",
+      },
     ],
   };
 }
@@ -160,6 +178,85 @@ async function verifyAndSettlePayment(
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Verify a Blackbox privacy payment by checking each withdrawal tx on Base Sepolia.
+ * Uses JSON-RPC directly (no viem — Workers runtime).
+ *
+ * For each txHash:
+ *   1. eth_getTransactionReceipt via public RPC
+ *   2. Find USDC Transfer log with recipient == sellerAddress
+ *   3. Sum amounts, confirm total >= expected (1% fee tolerance)
+ */
+async function verifyBlackboxPayment(
+  header: BlackboxPaymentHeader,
+  sellerAddress: string,
+  usdcAddress: string
+): Promise<{ valid: boolean; reason?: string }> {
+  const BASE_SEPOLIA_RPC = "https://sepolia.base.org";
+  const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+  const TASK_PRICE_MICRO = BigInt(TASK_PRICE_USDC);
+  const expectedPayTo = sellerAddress.toLowerCase();
+
+  try {
+    let totalReceived = BigInt(0);
+
+    for (const hash of header.txHashes) {
+      // Validate hash format before hitting RPC
+      if (!/^0x[0-9a-fA-F]{64}$/.test(hash)) {
+        return { valid: false, reason: `Invalid tx hash format: ${hash.slice(0, 20)}` };
+      }
+
+      const rpcRes = await fetch(BASE_SEPOLIA_RPC, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_getTransactionReceipt",
+          params: [hash],
+        }),
+      });
+
+      if (!rpcRes.ok) return { valid: false, reason: `RPC request failed: ${rpcRes.status}` };
+
+      const rpcData = await rpcRes.json() as {
+        result: {
+          status: string;
+          logs: { address: string; topics: string[]; data: string }[];
+        } | null;
+      };
+
+      const receipt = rpcData.result;
+      if (!receipt) return { valid: false, reason: `Tx ${hash.slice(0, 12)}... not found or pending` };
+      if (receipt.status !== "0x1") return { valid: false, reason: `Tx ${hash.slice(0, 12)}... reverted` };
+
+      // Find USDC Transfer events to seller address
+      for (const log of receipt.logs) {
+        if (log.address.toLowerCase() !== usdcAddress.toLowerCase()) continue;
+        if (log.topics[0] !== TRANSFER_TOPIC) continue;
+        if (!log.topics[2]) continue;
+
+        const recipient = ("0x" + log.topics[2].slice(26)).toLowerCase();
+        if (recipient !== expectedPayTo) continue;
+
+        totalReceived += BigInt(log.data);
+      }
+    }
+
+    const minAccepted = (TASK_PRICE_MICRO * 99n) / 100n; // 1% fee tolerance
+    if (totalReceived < minAccepted) {
+      return {
+        valid: false,
+        reason: `Received ${totalReceived} micro-USDC to seller, expected >= ${minAccepted}`,
+      };
+    }
+
+    return { valid: true };
+  } catch (err) {
+    return { valid: false, reason: `On-chain verification error: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
@@ -365,7 +462,36 @@ app.post("/task", async (c) => {
     });
   }
 
-  const verified = await verifyAndSettlePayment(paymentHeader, facilitatorUrl);
+  // Decode header to detect scheme
+  let scheme = "exact";
+  try {
+    const decoded = JSON.parse(atob(paymentHeader)) as { scheme?: string };
+    if (decoded.scheme) scheme = decoded.scheme;
+  } catch {
+    // Not JSON/base64 — treat as standard x402 EIP-3009 payload
+  }
+
+  let verified = false;
+  if (scheme === "blackbox-x402") {
+    try {
+      const header = JSON.parse(atob(paymentHeader)) as BlackboxPaymentHeader;
+      const result = await verifyBlackboxPayment(header, payToAddress, usdcAddress);
+      verified = result.valid;
+      if (!result.valid) {
+        return c.json(
+          { x402Version: 2, error: "Payment verification failed", detail: result.reason },
+          402
+        );
+      }
+    } catch {
+      return c.json(
+        { x402Version: 2, error: "Malformed blackbox-x402 payment header" },
+        402
+      );
+    }
+  } else {
+    verified = await verifyAndSettlePayment(paymentHeader, facilitatorUrl);
+  }
 
   if (!verified) {
     return c.json(
@@ -381,7 +507,7 @@ app.post("/task", async (c) => {
   }
 
   // Payment confirmed — deliver Venice AI intelligence
-  const body = await c.req.json<{ query?: string }>().catch(() => ({}));
+  const body = await c.req.json<{ query?: string }>().catch(() => ({ query: undefined }));
   const prompt =
     body.query ||
     "Provide a concise market intelligence report on the emerging agent-to-agent payment economy: key trends, privacy risks from on-chain payment graphs, and how privacy-preserving infrastructure changes competitive dynamics for AI agents.";
