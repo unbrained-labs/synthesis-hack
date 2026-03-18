@@ -95,19 +95,22 @@ For amounts < ${PRIVACY_FLOOR} USDC: uses x402 direct payment.
 Returns the service response and withdrawal transaction hashes as payment proof.`,
   inputSchema: z.object({
     seller_url: z.string().url().describe("The x402-protected endpoint to pay and call"),
-    buyer_private_key: z.string().describe("Buyer's EVM private key (hex, with 0x prefix)"),
     wallet_name: z.string().default("agentclear-buyer").describe("Wallet name for Blackbox"),
-    wallet_password: z.string().default("agentclear-demo-2026").describe("Wallet password for Blackbox"),
     source_chain: z.string().default("base_sepolia").describe("Chain where buyer deposits funds (e.g. polygon-amoy, sepolia, bnb-testnet, solana-devnet)"),
     target_chain: z.string().default("base_sepolia").describe("Chain where seller receives payment — must match seller's settlement chain"),
     query: z.string().optional().describe("Optional query/prompt to send to the seller"),
   }),
   async run({ args }) {
+    const privateKey = process.env.BUYER_PRIVATE_KEY;
+    const walletPassword = process.env.WALLET_PASSWORD;
+    if (!privateKey) throw new Error("BUYER_PRIVATE_KEY env var not set");
+    if (!walletPassword) throw new Error("WALLET_PASSWORD env var not set");
+
     const bb = await connectBlackbox();
 
     try {
       await checkHealth(bb);
-      await importWallet(bb, args.wallet_name, args.wallet_password, args.buyer_private_key);
+      await importWallet(bb, args.wallet_name, walletPassword, privateKey);
 
       // Probe seller for payment instructions
       const probeRes = await fetch(args.seller_url, {
@@ -134,7 +137,7 @@ Returns the service response and withdrawal transaction hashes as payment proof.
       let scheme: string;
 
       if (amountNum >= PRIVACY_FLOOR) {
-        const result: PayResult = await payExact(bb, amount, payTo, args.wallet_name, args.wallet_password, args.source_chain, args.target_chain);
+        const result: PayResult = await payExact(bb, amount, payTo, args.wallet_name, walletPassword, args.source_chain, args.target_chain);
         txHashes = result.withdrawTxHashes;
         scheme = "blackbox-x402";
       } else {
