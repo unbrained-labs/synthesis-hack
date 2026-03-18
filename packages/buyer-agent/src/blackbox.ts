@@ -1,7 +1,5 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import fs from "fs";
-import path from "path";
 
 export interface BlackboxClient {
   client: Client;
@@ -245,13 +243,6 @@ export async function payExact(
     if (depositParsed.deposit_tx_hash) depositTxHashes.push(depositParsed.deposit_tx_hash);
     console.log(`    Merkle root: ${key.merkle_root_id}`);
 
-    const keyFile = path.join(
-      process.cwd(),
-      `.withdrawal-key-${i}-${Date.now()}.json`
-    );
-    fs.writeFileSync(keyFile, JSON.stringify(key, null, 2));
-    console.log(`    Key saved to ${path.basename(keyFile)}`);
-
     const withdrawResult = await bb.client.callTool({
       name: "withdraw_onchain",
       arguments: {
@@ -278,8 +269,6 @@ export async function payExact(
 
     console.log(`    Withdraw tx: ${withdrawParsed.tx_hash}`);
     withdrawTxHashes.push(withdrawParsed.tx_hash);
-
-    try { fs.unlinkSync(keyFile); } catch { /* ignore */ }
   }
 
   return { depositTxHashes, withdrawTxHashes };
