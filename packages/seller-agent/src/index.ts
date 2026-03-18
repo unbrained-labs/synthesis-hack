@@ -160,7 +160,7 @@ async function verifyBlackboxPayment(
   header: BlackboxPaymentHeader
 ): Promise<{ valid: boolean; reason?: string }> {
   try {
-    const expectedPayTo = header.payTo.toLowerCase();
+    const expectedPayTo = SELLER_ADDRESS; // always verify against server-configured address, never trust client-supplied payTo
     const expectedMicro = BigInt(TASK_PRICE_USDC);
     let totalReceived = BigInt(0);
 
