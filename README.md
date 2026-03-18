@@ -50,8 +50,8 @@ Deposit tx and withdrawal tx share no on-chain addresses. The seller only ever s
 
 ## Privacy Proof (live on Base Sepolia)
 
-- **Deposit:** [`0x6f73f279...`](https://sepolia.basescan.org/tx/0x6f73f279559bcfbc3e118a5ad223507e92844bfeabf35853d71dec27b277bb8a) — buyer → Blackbox treasury
-- **Withdrawal:** [`0xc5bb1f91...`](https://sepolia.basescan.org/tx/0xc5bb1f915607fd8d3623b98fc1b7327f245a681b53f33d45b475deb2eba1d10a) — one-time key → seller
+- **Deposit:** [`0x8b9460...`](https://sepolia.basescan.org/tx/0x8b9460667cec268a861bbefc1e09addfadc5b33ef8157f01b632b2a9d82996a7) — buyer → Blackbox treasury
+- **Withdrawal:** [`0x2719c4...`](https://sepolia.basescan.org/tx/0x2719c4b067cf76a36e414477c9fe0925768ae6d9a20a04de23f76ea9d28f9e18) — one-time key → seller
 
 No common addresses. The seller's entire view of the transaction is the second tx.
 
@@ -153,18 +153,18 @@ Step 3: Connect Blackbox MCP
 
 Step 4: Probe seller → HTTP 402
   Amount  : 1 USDC
-  Pay to  : 0x79eFeb66c313DA4F5D2A26bb5E15BEd86B98530f
+  Pay to  : 0x90C0cB844b4dcef17B5eDc6d19F90F9Fa3D325E1
 
 Step 5-6: Intelligence sourced privately via Blackbox DKG
-  Deposit tx : 0x6f73f279...  (buyer → treasury)
-  Withdraw tx: 0xc5bb1f91...  (one-time key → seller)
+  Deposit tx : 0x8b9460...  (buyer → treasury)
+  Withdraw tx: 0x2719c4...  (one-time key → seller)
 
 Step 8: Intelligence acquired
   { report: { analysis: "...", paymentVerified: true } }
 
 ── What a competitor sees on-chain ──────────────────────
-  Deposit:    0x6f73f2... → Blackbox treasury   buyer: UNKNOWN
-  Withdrawal: 0xc5bb1f... → seller              source: UNKNOWN
+  Deposit:    0x8b9460... → Blackbox treasury   buyer: UNKNOWN
+  Withdrawal: 0x2719c4... → seller              source: UNKNOWN
   No common address. No link. No graph edge.
 ─────────────────────────────────────────────────────────
 ```
