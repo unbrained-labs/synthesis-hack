@@ -1,0 +1,19 @@
+{
+  "name": "@trustvault/peer-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Peer agent for cooperation demo — discovers TrustVault, exchanges attestations, cooperates",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.4.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240725.0",
+    "typescript": "^5.5.0",
+    "wrangler": "^3.65.0"
+  }
+}

@@ -1,0 +1,27 @@
+name = "trustvault-agent"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[durable_objects]
+bindings = [
+  { name = "TRUST_AGENT", class_name = "TrustAgent" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["TrustAgent"]
+
+[vars]
+IDENTITY_REGISTRY = "0x8004A818BFB912233c491871b3d84c89A494BD9e"
+REPUTATION_REGISTRY = "0x8004B663056A597Dffe9eCcC1965A193B7388713"
+USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+BASE_SEPOLIA_RPC = "https://sepolia.base.org"
+VENICE_MODEL = "llama-3.3-70b"
+# Secrets (set via `wrangler secret put`):
+#   VENICE_API_KEY
+#   TRUST_AGENT_PRIVATE_KEY
+
+[dev]
+port = 8787
+local_protocol = "http"
