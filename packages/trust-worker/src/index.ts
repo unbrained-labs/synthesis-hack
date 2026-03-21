@@ -18,7 +18,7 @@
 
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import type { Env, AgentCard, CooperationRequest } from "./types";
+import type { Env, AgentCard, CooperationRequest, ResolveRequest } from "./types";
 import { queryOnchainReputation, checkRegistration } from "./erc8004";
 import { generateIntelligence } from "./inference";
 
@@ -187,6 +187,31 @@ app.get("/cooperation-log", async (c) => {
     entries: memory.cooperationHistory,
     count: memory.cooperationHistory.length,
   });
+});
+
+// ── Trust Resolution ────────────────────────────────────────────────────────
+
+app.post("/resolve", async (c) => {
+  const body = (await c.req.json()) as ResolveRequest;
+  const stub = getAgentStub(c);
+  const res = await stub.fetch(
+    new Request("https://internal/resolve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    })
+  );
+  const result = await res.json();
+  return c.json(result, res.status);
+});
+
+app.get("/resolution-log", async (c) => {
+  const stub = getAgentStub(c);
+  const res = await stub.fetch(
+    new Request("https://internal/resolution-log")
+  );
+  const data = await res.json();
+  return c.json(data);
 });
 
 // ── Query another agent's trust ──────────────────────────────────────────────

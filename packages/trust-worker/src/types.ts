@@ -76,6 +76,84 @@ export interface CooperationDecision {
   matchedSkills: string[];
 }
 
+// ── Resolution types ────────────────────────────────────────────────────────
+
+export type Verdict = "TRUSTED" | "CAUTIOUS" | "UNTRUSTED" | "UNKNOWN";
+export type RiskLevel = "low" | "medium" | "high" | "critical";
+
+export interface ResolveRequest {
+  agentUrl: string;
+  task?: {
+    type: string;
+    description?: string;
+    riskLevel: RiskLevel;
+    requiredCapabilities: string[];
+    valueAtStake?: string;
+  };
+}
+
+export interface ResolveResult {
+  verdict: Verdict;
+  confidence: number;
+  trustScore: number;
+
+  taskFit: {
+    capabilityMatch: string[];
+    capabilityGap: string[];
+    riskAssessment: RiskLevel;
+    safeguards: string[];
+  };
+
+  report: {
+    identity: {
+      reachable: boolean;
+      hasAgentCard: boolean;
+      name: string | null;
+      capabilities: string[];
+      erc8004Registered: boolean;
+      tokenId: number | null;
+    };
+    onchainReputation: {
+      feedbackCount: number;
+      averageScore: number;
+    };
+    localTrust: {
+      directAttestations: number;
+      averageScore: number;
+      skills: string[];
+    };
+    sybilIndicators: {
+      selfAttestationDetected: boolean;
+      attestationVelocityNormal: boolean;
+      uniqueAttestorRatio: number;
+    };
+    reasoning: string;
+  };
+
+  receipt: {
+    id: string;
+    resolvedAt: string;
+    expiresAt: string;
+    resolver: string;
+    targetAgent: string;
+    digest: string;
+  };
+}
+
+export interface CachedResolution {
+  result: ResolveResult;
+  expiresAt: string;
+}
+
+export interface ResolutionLogEntry {
+  id: string;
+  targetAgent: string;
+  verdict: Verdict;
+  trustScore: number;
+  task?: string;
+  timestamp: string;
+}
+
 // ── Agent memory (Durable Object state) ──────────────────────────────────────
 
 export interface AgentMemory {
@@ -89,6 +167,8 @@ export interface AgentMemory {
   attestationsGiven: Attestation[];
   cooperationHistory: CooperationLogEntry[];
   skills: string[];
+  resolveCache: Record<string, CachedResolution>;
+  resolutionLog: ResolutionLogEntry[];
 }
 
 export interface CooperationLogEntry {
