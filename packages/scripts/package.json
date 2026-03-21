@@ -1,23 +1,20 @@
 {
-  "name": "@agentclear/scripts",
+  "name": "@trustvault/scripts",
   "version": "0.1.0",
   "private": true,
-  "description": "Setup and utility scripts for AgentClear",
+  "type": "module",
+  "description": "Setup scripts — wallet generation, ERC-8004 registration, cooperation demo",
   "scripts": {
     "wallets": "tsx src/setup-wallets.ts",
-    "health": "tsx src/check-health.ts",
-    "register": "tsx src/register-erc8004.ts"
+    "register": "tsx src/register-erc8004.ts",
+    "demo": "tsx src/demo-cooperation.ts"
   },
   "dependencies": {
-    "dotenv": "^16.4.7",
-    "node-fetch": "^3.3.2",
-    "viem": "^2.21.54"
+    "dotenv": "^16.4.0",
+    "viem": "^2.20.0"
   },
   "devDependencies": {
-    "@coinbase/cdp-sdk": "^1.45.0",
-    "@types/node": "^22.10.5",
-    "ts-node": "^10.9.2",
-    "tsx": "^4.21.0",
-    "typescript": "^5.7.3"
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
   }
 }

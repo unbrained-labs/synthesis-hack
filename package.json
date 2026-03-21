@@ -1,11 +1,14 @@
 {
-  "name": "agentclear",
+  "name": "trustvault-v2",
   "private": true,
   "workspaces": ["packages/*"],
   "scripts": {
-    "dev:worker": "cd packages/worker && npm run dev",
-    "dev:buyer": "cd packages/buyer-agent && npm run dev",
-    "dev:seller": "cd packages/seller-agent && npm run dev",
-    "deploy": "cd packages/worker && npm run deploy"
+    "dev:trust": "cd packages/trust-worker && npm run dev",
+    "dev:peer": "cd packages/peer-agent && npm run dev",
+    "deploy": "cd packages/trust-worker && npm run deploy",
+    "deploy:peer": "cd packages/peer-agent && npm run deploy",
+    "wallets": "cd packages/scripts && npx tsx src/setup-wallets.ts",
+    "register": "cd packages/scripts && npx tsx src/register-erc8004.ts",
+    "demo": "cd packages/scripts && npx tsx src/demo-cooperation.ts"
   }
 }

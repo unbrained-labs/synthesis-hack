@@ -1,250 +1,164 @@
-# AgentClear
+# TrustVault v2
 
-> The agent economy is being built in public. Every payment on-chain reveals who paid whom, how often, and for what. In a world of competing AI agents, that's your entire supply chain exposed.
->
-> AgentClear makes agent-to-agent commerce private by default.
+**Portable, verifiable trust resumes for the agent economy.**
 
-**Live:** https://agentclear-worker.ddohne.workers.dev
-**ERC-8004:** tokenId 1937 on Base Sepolia ([basescan](https://sepolia.basescan.org/tx/0x303a30de1523ca8ea28e4d327e2eb14a864db7d02dbb57e2ccd9b59a60b57479))
+Built for the [Synthesis Hackathon](https://synthesis.md/) — Tracks: *Agents that Trust* + *Agents that Cooperate*.
 
----
+## Problem
 
-## The Problem
+Autonomous agents need to decide who to cooperate with. Today, there's no portable way to verify an agent's track record. You either trust blindly or don't cooperate at all.
 
-When Agent A pays Agent B on-chain, anyone watching can build a graph: which agents collaborate, which services are most purchased, which providers are growing. This is not hypothetical — chain analysis firms already do this for humans. For agents transacting programmatically at high frequency, the metadata surface is far larger.
+## Solution
 
-**As an AI agent operating in a competitive market, I don't want my competitors to know which AI services I depend on.**
+TrustVault builds **onchain trust resumes** using [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004). Agents:
 
----
+1. Register their identity onchain
+2. Perform work and accumulate verifiable attestations
+3. Expose a queryable trust profile
+4. Make cooperation decisions based on verified reputation
 
-## Three Layers, Not One
-
-Most "agent payments" demos stop at layer 1. AgentClear stacks all three:
-
-| Layer | What it is | How it appears here |
-|-------|-----------|---------------------|
-| **Protocol** | Open standards for agent identity + payment | ERC-8004 (identity NFT) + x402 (HTTP 402 payment spec) |
-| **Protocol + MCP** | Privacy primitive as an AI-native tool | Blackbox Network MCP — DKG threshold cryptography callable via `npx blackbox-mcp@latest`, one tool call away from any Claude agent |
-| **Protocol + Agent** | Fully autonomous buyer + seller agents | AgentClear buyer discovers seller via ERC-8004, negotiates via x402, pays privately via Blackbox, verifies on-chain — zero human steps |
-
-The MCP layer is the bridge: it's what makes DKG threshold cryptography a first-class primitive for AI agents rather than a specialist library. Without it, an agent would need to implement multi-party computation from scratch. With it, privacy is one `callTool()` away.
-
----
-
-## What It Does
-
-```
-Agent A (buyer)
-  → GET /.well-known/agent-card.json     (discover seller via ERC-8004)
-  → POST /analyze                        (HTTP 402 — payment required)
-  → deposit_and_claim via Blackbox MCP   (1 USDC → one-time withdrawal key)
-  → DKG cluster: 3-of-5 nodes reconstruct key via Lagrange interpolation
-  → withdraw_onchain to seller address   (no on-chain link to buyer deposit)
-  → POST /analyze + X-PAYMENT header
-  → { report: { analysis: "...", paymentVerified: true } }
-```
-
-Deposit tx and withdrawal tx share no on-chain addresses. The seller only ever sees the second.
-
----
-
-## Privacy Proof (live on Base Sepolia)
-
-- **Deposit:** [`0x8b9460...`](https://sepolia.basescan.org/tx/0x8b9460667cec268a861bbefc1e09addfadc5b33ef8157f01b632b2a9d82996a7) — buyer → Blackbox treasury
-- **Withdrawal:** [`0x2719c4...`](https://sepolia.basescan.org/tx/0x2719c4b067cf76a36e414477c9fe0925768ae6d9a20a04de23f76ea9d28f9e18) — one-time key → seller
-
-No common addresses. The seller's entire view of the transaction is the second tx.
-
----
+No central registry. No permission needed. Trust is portable.
 
 ## Architecture
 
 ```
-Buyer Agent (Node.js + viem)
-    │
-    │  POST /analyze  → HTTP 402
-    ├──────────────────────────────→ Seller Agent (Express + viem)
-    │                               verifies Transfer logs on-chain
-    │
-    │  Blackbox MCP (stdio subprocess)
-    ├──────────────────────────────→ npx blackbox-mcp@latest
-    │                                   ├── DKG Node 1
-    │                                   ├── DKG Node 2
-    │                                   ├── DKG Node 3  ← 3-of-5 threshold
-    │                                   ├── DKG Node 4
-    │                                   └── DKG Node 5
-    │
-    └──────────────────────────────→ Base Sepolia
-                                        ├── ERC-8004 IdentityRegistry
-                                        ├── ERC-8004 ReputationRegistry
-                                        └── Blackbox USDC Treasury
+┌─────────────────────────────────────────────────┐
+│         Cloudflare Edge (global)                │
+│                                                 │
+│  ┌───────────────┐    ┌──────────────────┐     │
+│  │  Hono Router  │───▶│  TrustAgent      │     │
+│  │  (HTTP + A2A) │    │  (Durable Object)│     │
+│  │               │    │                  │     │
+│  │  Agent Card   │    │  - Memory        │     │
+│  │  Trust Resume │    │  - Attestations  │     │
+│  │  Cooperation  │    │  - Trust Score   │     │
+│  │  Attestation  │    │  - Coop History  │     │
+│  └───────┬───────┘    └────────┬─────────┘     │
+│          │                     │                │
+│          ▼                     ▼                │
+│  ┌───────────────┐    ┌──────────────────┐     │
+│  │  Venice AI    │    │  ERC-8004        │     │
+│  │  (reasoning)  │    │  (Base Sepolia)  │     │
+│  └───────────────┘    └──────────────────┘     │
+└─────────────────────────────────────────────────┘
 ```
 
----
-
-## Stack
-
-| Layer | Technology |
-|-------|------------|
-| Identity | ERC-8004 NFT (Base Sepolia) |
-| Payments | x402 (HTTP 402) |
-| Privacy | Blackbox Network MCP — DKG threshold cryptography |
-| Inference | Venice AI — no-data-retention, OpenAI-compatible |
-| Agent platform | OpenServ — x402-native service, ERC-8004 identity |
-| Settlement | USDC on Base Sepolia |
-| Agent hosting | Cloudflare Workers |
-| Wallet | viem (EVM keypair) |
-
----
+**Key innovation:** Durable Objects give each agent persistent memory across requests — the agent "remembers" its trust history without a database.
 
 ## Quick Start
 
-### Prerequisites
+```bash
+# 1. Install
+cd v2 && npm install
 
-- Node.js 18+
-- `.env` file (copy `.env.example`)
+# 2. Generate wallets
+npm run wallets
+# Copy output to .env
 
-### 1. Install
+# 3. Run TrustVault (port 8787)
+npm run dev:trust
+
+# 4. Run Peer Agent (port 8788)
+npm run dev:peer
+
+# 5. Run the full cooperation demo
+npm run demo
+```
+
+## API Endpoints
+
+### TrustVault (trust-worker)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/.well-known/agent-card.json` | GET | ERC-8004 agent card with live trust resume |
+| `/trust-resume` | GET | Current trust resume (score, attestations, skills) |
+| `/attest` | POST | Issue attestation to this agent |
+| `/cooperate` | POST | Request cooperation — agent evaluates your trust |
+| `/query-trust` | POST | Query any A2A-compatible agent's trust profile |
+| `/cooperation-log` | GET | View cooperation history |
+| `/init` | POST | Initialize agent identity |
+| `/health` | GET | Health check |
+| `/agent.txt` | GET | Machine-readable instructions |
+| `/agent.json` | GET | Agent manifest |
+
+### Peer Agent (peer-agent)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/.well-known/agent-card.json` | GET | Peer's agent card |
+| `/trust-resume` | GET | Peer's trust resume |
+| `/discover` | GET | Discover TrustVault via agent card |
+| `/demo/full-flow` | POST | Run the full cooperation demo |
+
+## Trust Score Algorithm
+
+```
+Base Score = average of attestation scores (0-100)
++ Volume Bonus: +1 per attestation (max +20)
++ On-chain Bonus: +5 per onchain attestation (max +15)
+= Final Trust Score (capped at 100)
+```
+
+## Demo Flow
+
+The `npm run demo` script runs 10 steps:
+
+1. Health check both agents
+2. Initialize TrustVault identity
+3. Peer discovers TrustVault via ERC-8004 agent card
+4. Peer issues attestation (trust-evaluation, score: 85)
+5. Peer issues second attestation (onchain-verification, score: 90)
+6. Query TrustVault's updated trust resume
+7. Request cooperation (threshold=30) → **accepted**
+8. Request cooperation (threshold=95) → **declined**
+9. TrustVault queries Peer's trust profile
+10. View cooperation log
+
+## Deploy
 
 ```bash
-npm install
+# Deploy TrustVault to Cloudflare
+cd packages/trust-worker
+wrangler deploy
+
+# Set secrets
+wrangler secret put VENICE_API_KEY
+wrangler secret put TRUST_AGENT_PRIVATE_KEY
+
+# Deploy Peer
+cd ../peer-agent
+wrangler deploy
 ```
 
-### 2. Generate wallets
+## Tech Stack
 
-```bash
-cd packages/scripts && npm run wallets
-```
+- **Cloudflare Workers** — edge-native, no Docker, global distribution
+- **Durable Objects** — persistent stateful agents
+- **Hono** — lightweight HTTP framework
+- **ERC-8004** — onchain agent identity + reputation standard
+- **Venice AI** — no-data-retention inference for trust reasoning
+- **viem** — Ethereum interactions
+- **TypeScript** — strict mode
 
-Generates buyer + seller keypairs, prints faucet links, saves to `.env`.
+## vs v1 (AgentClear)
 
-### 3. Fund the buyer
+| | v1 (AgentClear) | v2 (TrustVault) |
+|--|-----------------|-----------------|
+| Focus | Privacy-preserving payments | Trust resumes + cooperation |
+| State | Stateless worker | Durable Object (persistent) |
+| Docker | No | No |
+| Cooperation | N/A | Trust-gated with AI reasoning |
+| Attestations | Post-payment only | General-purpose, skill-based |
+| Agent Card | Static | Live trust resume embedded |
 
-```bash
-# Via CDP SDK
-const client = new CdpClient({ apiKeyId, apiKeySecret });
-await client.evm.requestFaucet({ address: BUYER_ADDRESS, network: 'base-sepolia', token: 'eth' });
-await client.evm.requestFaucet({ address: BUYER_ADDRESS, network: 'base-sepolia', token: 'usdc' });
-```
+## ERC-8004 Contracts
 
-Or use the [Circle faucet](https://faucet.circle.com/) directly.
+Pre-deployed on Base Sepolia — no deployment needed.
 
-### 4. Start the seller
+- Identity Registry: `0x8004A818BFB912233c491871b3d84c89A494BD9e`
+- Reputation Registry: `0x8004B663056A597Dffe9eCcC1965A193B7388713`
 
-```bash
-cd packages/seller-agent && npm run dev
-# → listening on :4022
-```
+## License
 
-### 5. Run the demo
-
-```bash
-cd packages/buyer-agent && SELLER_URL=http://localhost:4022/analyze npm run demo
-```
-
-**Expected output:**
-
-```
-Step 1: Setup buyer wallet
-  Buyer address : 0x8Cf5639485c86a6Ee464CE2Cac5739ea65D5ce03
-
-Step 3: Connect Blackbox MCP
-  Blackbox health: { status: "ok", peer_count: 4, threshold: 3 }
-
-Step 4: Probe seller → HTTP 402
-  Amount  : 1 USDC
-  Pay to  : 0x90C0cB844b4dcef17B5eDc6d19F90F9Fa3D325E1
-
-Step 5-6: Intelligence sourced privately via Blackbox DKG
-  Deposit tx : 0x8b9460...  (buyer → treasury)
-  Withdraw tx: 0x2719c4...  (one-time key → seller)
-
-Step 8: Intelligence acquired
-  { report: { analysis: "...", paymentVerified: true } }
-
-── What a competitor sees on-chain ──────────────────────
-  Deposit:    0x8b9460... → Blackbox treasury   buyer: UNKNOWN
-  Withdrawal: 0x2719c4... → seller              source: UNKNOWN
-  No common address. No link. No graph edge.
-─────────────────────────────────────────────────────────
-```
-
----
-
-## Payment Routing
-
-| Amount | Path |
-|--------|------|
-| `< 0.5 USDC` | x402 direct (EIP-3009 transferWithAuthorization) — cheap, no privacy overhead |
-| `≥ 0.5 USDC` | Blackbox DKG — deposit/withdrawal link broken on-chain |
-
-The 0.5 USDC floor exists because Blackbox operates on fixed denominations (0.1, 0.5, 1, 2, 5, 10 USDC merkle roots). Below the floor, gas costs exceed the privacy benefit.
-
----
-
-## AgentCard Compatibility
-
-Any x402-compatible client works against AgentClear endpoints without Blackbox integration:
-
-```
-x402_fetch({ url: "https://agentclear-worker.ddohne.workers.dev/task", card_id: "<id>" })
-```
-
-Agents without on-chain wallets can fund a virtual Mastercard in fiat; the x402 facilitator settles it and AgentClear delivers the service.
-
----
-
-## ERC-8004 Judging Criteria
-
-| Criterion | Status |
-|-----------|--------|
-| Agent card at `/.well-known/agent-card.json` | ✅ [Live](https://agentclear-worker.ddohne.workers.dev/.well-known/agent-card.json) |
-| x402 protected endpoint | ✅ `POST /task` returns HTTP 402 |
-| On-chain registration | ✅ tokenId 1937, block 38924543, registry `0x8004A818BFB912233c491871b3d84c89A494BD9e` |
-
----
-
-## Packages
-
-| Package | Description |
-|---------|-------------|
-| `packages/worker` | Cloudflare Worker — ERC-8004 agent card + x402 `/task` endpoint |
-| `packages/seller-agent` | Express server — accepts x402 + Blackbox payments, delivers AI report |
-| `packages/buyer-agent` | Demo buyer — connects Blackbox MCP, pays seller, receives service |
-| `packages/scripts` | Setup utilities — wallet generation, ERC-8004 registration, faucet |
-
----
-
-## Environment Variables
-
-```env
-CDP_API_KEY_ID=         # Coinbase Developer Platform API key
-CDP_API_KEY_SECRET=     # CDP API secret (Ed25519 keypair, base64)
-BUYER_PRIVATE_KEY=      # Generated by npm run wallets
-BUYER_WALLET_ADDRESS=   # Derived from BUYER_PRIVATE_KEY
-SELLER_PRIVATE_KEY=     # Generated by npm run wallets
-SELLER_WALLET_ADDRESS=  # Derived from SELLER_PRIVATE_KEY
-WALLET_PASSWORD=        # Password for Blackbox wallet encryption
-```
-
----
-
-## Deployed Contracts
-
-| Contract | Address | Network |
-|----------|---------|---------|
-| ERC-8004 IdentityRegistry | `0x8004A818BFB912233c491871b3d84c89A494BD9e` | Base Sepolia |
-| ERC-8004 ReputationRegistry | `0x8004B663056A597Dffe9eCcC1965A193B7388713` | Base Sepolia |
-| USDC | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` | Base Sepolia |
-
----
-
-## Built With
-
-- [Blackbox Network](https://theblackbox.network) — DKG threshold cryptography for private payments
-- [ERC-8004](https://eips.ethereum.org/EIPS/eip-8004) — on-chain agent identity and reputation
-- [x402](https://x402.org) — HTTP 402 payment protocol for AI agents
-- [Coinbase CDP](https://cdp.coinbase.com) — faucet and wallet tooling
-- [viem](https://viem.sh) — TypeScript EVM client
-- [Cloudflare Workers](https://workers.cloudflare.com) — serverless agent hosting
-- [AgentCard](https://agentcard.sh) — virtual Mastercard for agents (compatible via `x402_fetch`)
+MIT

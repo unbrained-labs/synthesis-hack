@@ -1,6 +1,6 @@
-.env
 node_modules/
-package-lock.json
 dist/
+.env
+.dev.vars
 .wrangler/
-*.js.map
+*.log
