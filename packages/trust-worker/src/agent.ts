@@ -19,12 +19,10 @@ import type {
   CooperationLogEntry,
   AgentMemory,
   TrustResume,
-  ResolveRequest,
   Env,
 } from "./types";
 import { queryOnchainReputation } from "./erc8004";
 import { generateTrustAnalysis } from "./inference";
-import { resolveAgent } from "./resolve";
 
 export class TrustAgent implements DurableObject {
   private state: DurableObjectState;
@@ -57,12 +55,6 @@ export class TrustAgent implements DurableObject {
       }
       if (request.method === "GET" && path === "/score") {
         return this.getScore();
-      }
-      if (request.method === "POST" && path === "/resolve") {
-        return this.handleResolve(request);
-      }
-      if (request.method === "GET" && path === "/resolution-log") {
-        return this.getResolutionLog();
       }
 
       return new Response(JSON.stringify({ error: "Not found" }), {
@@ -268,61 +260,6 @@ export class TrustAgent implements DurableObject {
     return json(decision);
   }
 
-  // ── Resolution ──────────────────────────────────────────────────────────
-
-  private async handleResolve(request: Request): Promise<Response> {
-    const body = (await request.json()) as ResolveRequest;
-    const memory = await this.loadMemory();
-
-    // Check cache (5 minute TTL)
-    const cacheKey = `${body.agentUrl}:${body.task?.type ?? "general"}`;
-    const cached = memory.resolveCache?.[cacheKey];
-    if (cached && new Date(cached.expiresAt) > new Date()) {
-      return json({
-        ...cached.result,
-        receipt: { ...cached.result.receipt, cacheHit: true },
-      });
-    }
-
-    const result = await resolveAgent(body, {
-      rpcUrl: this.env.BASE_SEPOLIA_RPC,
-      identityRegistry: this.env.IDENTITY_REGISTRY,
-      reputationRegistry: this.env.REPUTATION_REGISTRY,
-      memory,
-      aiApiKey: this.env.VENICE_API_KEY,
-      aiModel: this.env.VENICE_MODEL,
-    });
-
-    // Cache result (5 min)
-    if (!memory.resolveCache) memory.resolveCache = {};
-    memory.resolveCache[cacheKey] = {
-      result,
-      expiresAt: new Date(Date.now() + 300_000).toISOString(),
-    };
-
-    // Log resolution
-    if (!memory.resolutionLog) memory.resolutionLog = [];
-    memory.resolutionLog.push({
-      id: result.receipt.id,
-      targetAgent: body.agentUrl,
-      verdict: result.verdict,
-      trustScore: result.trustScore,
-      task: body.task?.type,
-      timestamp: result.receipt.resolvedAt,
-    });
-
-    await this.saveMemory(memory);
-    return json(result);
-  }
-
-  private async getResolutionLog(): Promise<Response> {
-    const memory = await this.loadMemory();
-    return json({
-      resolutions: memory.resolutionLog ?? [],
-      count: (memory.resolutionLog ?? []).length,
-    });
-  }
-
   // ── Memory ───────────────────────────────────────────────────────────────
 
   private async getMemory(): Promise<Response> {
@@ -345,8 +282,6 @@ export class TrustAgent implements DurableObject {
           "reputation-analysis",
           "attestation-management",
         ],
-        resolveCache: {},
-        resolutionLog: [],
       }
     );
   }
